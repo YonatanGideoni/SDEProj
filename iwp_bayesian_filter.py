@@ -1,5 +1,26 @@
 import numpy as np
+import math
 
+# FIXME: What do?
+def calc_H_mat(dim: int):
+    raise NotImplementedError
+
+def calc_A_mat(dt: float, dim: int):
+    A = np.zeros((dim, dim), dtype=np.float)
+    for i in range(dim):
+        for j in range(dim):
+            if j >= i:
+                A[i, j] = (dt ** (j - i)) / math.factorial(j - i)
+    return A
+
+def calc_Q_mat(dt: float, dim: int, sigma: float):
+    Q = np.zeros((dim, dim), dtype=np.float)
+    for i in range(dim):
+        for j in range(dim):
+            num = dt ** (2 * dim + 1 - i - j)
+            denom = (2 * dim + 1 - i - j) * math.factorial(dim - i) * math.factorial(dim - j)
+            Q[i, j] = (sigma ** 2) * (num / denom)
+    return Q
 
 # TODO - make this work for generic dts and not just a set one
 def ode_filter(func: callable, init_mean: np.ndarray, init_cov: np.ndarray, dt: float, n_steps: int):
