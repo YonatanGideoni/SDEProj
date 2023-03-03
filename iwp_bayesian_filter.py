@@ -15,6 +15,7 @@ def calc_A_mat(dt: float, dim: int):
                 A[i, j] = (dt ** (j - i)) / math.factorial(j - i)
     return A
 
+# Sigma associated with IWP prior
 def calc_Q_mat(dt: float, dim: int, sigma = 1.0):
     Q = np.zeros((dim, dim), dtype=np.float32)
     for i in range(dim):
@@ -26,8 +27,8 @@ def calc_Q_mat(dt: float, dim: int, sigma = 1.0):
 
 # TODO - make this work for generic dts and not just a set one
 def ode_filter(func: callable, init_mean: np.ndarray, init_cov: np.ndarray, dt: float, n_steps: int):
-    dim = init_mean.shape
-    print(dim)
+    dim = init_mean.shape[0]
+    # print(dim)
 
     # if dim == ():
     #     dim = 1
@@ -71,10 +72,23 @@ def ode_filter(func: callable, init_mean: np.ndarray, init_cov: np.ndarray, dt: 
 if __name__ == "__main__":
 
     def wiener_1d(t: float, mean: float):
-        thing = np.random.normal(loc=mean, scale=1.0)
-        print(thing)
-        return thing
+        return np.random.normal(loc=mean, scale=1.0)
     
-    means, covs = ode_filter(wiener_1d, np.array(0).reshape(1), np.array(1).reshape(1, 1), 0.1, 100)
+    def simple_ode(t: float, mean: float):
+        return mean + t
+    
+    means, covs = ode_filter(
+        func=wiener_1d,
+        init_mean=np.array(0, dtype=np.float32).reshape(1),
+        init_cov=np.array(1, dtype=np.float32).reshape(1, 1),
+        dt=0.01,
+        n_steps=100)
+
     print(means)
     print(covs)
+
+    import scipy
+
+    init = np.array(0, dtype=np.float32).reshape(1)
+    res = scipy.integrate.solve_ivp(wiener_1d, (0.0, 1.0), init, rtol=1e-5, atol=1e-5, method='RK45')
+    print(res)
