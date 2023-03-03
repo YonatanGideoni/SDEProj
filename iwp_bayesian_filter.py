@@ -82,6 +82,9 @@ if __name__ == "__main__":
     def negative_exponential_ode(t: float, mean: float):
         return -mean
     
+    def negative_exponential(t: float):
+        return np.exp(-t)
+    
     order = 1
 
     # Initialise init_mean as defined in Magnani et al.
@@ -93,7 +96,7 @@ if __name__ == "__main__":
     init_cov = np.eye(order + 1, dtype=np.float32)
 
     dt = 0.5
-    n_steps = 24
+    n_steps = 50
     
     means, covs = ode_filter(
         func=negative_exponential_ode,
@@ -105,13 +108,16 @@ if __name__ == "__main__":
     import scipy
 
     init = init_mean.reshape(order + 1,)
-    res = scipy.integrate.solve_ivp(negative_exponential_ode, (0.0, (n_steps - 1) * dt), init, rtol=1e-5, atol=1e-5, method='RK45')
+    res = scipy.integrate.solve_ivp(negative_exponential_ode, (0.0, (n_steps - 1) * dt), init, rtol=1e-2, atol=1e-2, method='RK45')
     print(res)
 
     import matplotlib.pyplot as plt
 
-    plt.plot([dt * i for i in range(n_steps)], means[:, 0], label="Bayesian filter")
+    t = [dt * i for i in range(n_steps)]
+
+    plt.plot(t, means[:, 0], label="Bayesian filter")
     plt.plot(res["t"], res["y"][0], label="Scipy RK45")
+    plt.plot(t, negative_exponential(np.array(t)), label="Analytical ground truth")
     plt.legend()
     plt.show()
 
