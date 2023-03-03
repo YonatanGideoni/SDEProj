@@ -1,20 +1,22 @@
 import numpy as np
 import math
 
-# FIXME: What do?
+# TODO: Is this correct?
 def calc_H_mat(dim: int):
-    raise NotImplementedError
+    H = np.zeros((1, dim))
+    H[0] = 1
+    return H
 
 def calc_A_mat(dt: float, dim: int):
-    A = np.zeros((dim, dim), dtype=np.float)
+    A = np.zeros((dim, dim), dtype=np.float32)
     for i in range(dim):
         for j in range(dim):
             if j >= i:
                 A[i, j] = (dt ** (j - i)) / math.factorial(j - i)
     return A
 
-def calc_Q_mat(dt: float, dim: int, sigma: float):
-    Q = np.zeros((dim, dim), dtype=np.float)
+def calc_Q_mat(dt: float, dim: int, sigma = 1.0):
+    Q = np.zeros((dim, dim), dtype=np.float32)
     for i in range(dim):
         for j in range(dim):
             num = dt ** (2 * dim + 1 - i - j)
@@ -25,7 +27,13 @@ def calc_Q_mat(dt: float, dim: int, sigma: float):
 # TODO - make this work for generic dts and not just a set one
 def ode_filter(func: callable, init_mean: np.ndarray, init_cov: np.ndarray, dt: float, n_steps: int):
     dim = init_mean.shape
-    assert (dim, dim) == init_cov.shape, 'Error - init mean and covariance have a shape mismatch!'
+    print(dim)
+
+    # if dim == ():
+    #     dim = 1
+    # else:
+    #     assert (dim, dim) == init_cov.shape, 'Error - init mean and covariance have a shape mismatch!'
+
     A = calc_A_mat(dt, dim)
     Q = calc_Q_mat(dt, dim)
     H = calc_H_mat(dim)  # don't really need a function for this one but ¯\_(ツ)_/¯
@@ -59,3 +67,14 @@ def ode_filter(func: callable, init_mean: np.ndarray, init_cov: np.ndarray, dt: 
         means[step], covs[step] = mean, cov
 
     return means, covs
+
+if __name__ == "__main__":
+
+    def wiener_1d(t: float, mean: float):
+        thing = np.random.normal(loc=mean, scale=1.0)
+        print(thing)
+        return thing
+    
+    means, covs = ode_filter(wiener_1d, np.array(0).reshape(1), np.array(1).reshape(1, 1), 0.1, 100)
+    print(means)
+    print(covs)
