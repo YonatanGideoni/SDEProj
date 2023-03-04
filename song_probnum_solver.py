@@ -20,14 +20,53 @@ def ode_func(t, x):
     logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
     return np.concatenate([sample_grad, logp_grad], axis=0)
 
-
-if __name__ == '__main__':
-    min_timestep = 1e-3
-    t_final = 1.
-
+def solve_rk45(min_timestep, t_final):
     t = torch.ones(BS, device=DEVICE)
     init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
-    # Black-box ODE solver TODO - look at its outputs and error over time, how good/efficient is this? Compare to euler?
     res = integrate.solve_ivp(ode_func, (t_final, min_timestep), init_x, rtol=1e-5, atol=1e-5, method='RK45')
+    return res
+
+def visualise_results(results):
+
+    fig = plt.figure(figsize=(4., 4.))
+    grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                    nrows_ncols=(2, 2),  # creates 2x2 grid of axes
+                    axes_pad=0.1,  # pad between axes in inch.
+                    )
+
+    for ax, res in zip(grid, results):
+        im = res["y"][:-1, -1].reshape(28, 28)
+        ax.imshow(im.clip(0.0, 1.0))
+
+    plt.show()
+
+if __name__ == '__main__':
+
+    # Solve for n initialisations
+    results = []
+    n = 4
+    for i in range(n):
+        res = solve_rk45(min_timestep=1e-3, t_final=1.0)
+        results.append(res)
+
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.axes_grid1 import ImageGrid
+
+    visualise_results(results)
+
+    # Plot ODE solution for first result
+    res = results[0]
+    print(res)
+    for i in range(res["y"].shape[0] - 1):
+        plt.plot(res["t"], res["y"][i], label="Scipy RK45")
+    plt.ylabel("ODE Solution")
+    plt.xlabel("t")
+    plt.show()
+
+    # How many pixels get clipped?
+    for res in results:
+        im = res["y"][:-1, -1].reshape(28, 28)
+        clipped = np.extract(im.flatten() > 0.0, im.flatten())
+        clipped = np.extract(clipped < 1.0, clipped)
+        print(f"Of {len(im.flatten())} pixels, {len(clipped)} were not clipped")
