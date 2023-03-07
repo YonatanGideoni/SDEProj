@@ -55,7 +55,7 @@ def visualise_results(results):
 
 if __name__ == "__main__":
     
-    import franciscopls2
+    import odesolver
     import jax.numpy as jnp
     import matplotlib.pyplot as plt
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # exit(0)
 
     print(m0.shape, P0.shape)
-    ms, ts = franciscopls2.solve_kf(m0, P0, lambda t, x : ode_func(1.0 - t, x), t0=t0, t1=t1, steps=steps, q=q)
+    ms, ts = odesolver.solve_kf(m0, P0, lambda t, x : ode_func(1.0 - t, x), t0=t0, t1=t1, steps=steps, q=q)
 
     init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
