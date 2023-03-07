@@ -57,6 +57,7 @@ if __name__ == "__main__":
     
     import franciscopls2
     import jax.numpy as jnp
+    import matplotlib.pyplot as plt
 
     t0 = 0.01
     t1 = 1.0
@@ -66,11 +67,28 @@ if __name__ == "__main__":
     q = 2
 
     m0 = np.zeros((785, q + 1, 1))
-    P0 = jnp.zeros((785, q + 1, q + 1))
+    P0 = np.zeros((785, q + 1, q + 1))
+    for i in range(1, q+1):
+        P0[:, i, i] = 1
 
     t = torch.ones(BS, device=DEVICE)
     init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
+
+    # res = integrate.solve_ivp(ode_func, (t1, h), init_x, rtol=1e-5, atol=1e-5, method='RK45')
+
+    # t = h
+    # x = init_x
+    # for _ in range(steps):
+    #     # breakpoint()
+    #     print(abs(x[:-1]).mean())
+    #     x -= ode_func(max(1-t,h), x) * h
+    #     t += h
+    # # breakpoint()
+    # im = res["y"][:-1, -1].reshape(28, 28)
+    # im = x[:-1].reshape(28, 28)
+    # plt.imshow(im)
+    # plt.show()
 
     # Fix initialisation of m0 s.t. (x_0, f(0, x_0), 0,0,...) or ??? (x_0, f(1.0, x_0), 0,0,...)
     # in the rows
@@ -79,6 +97,7 @@ if __name__ == "__main__":
     m0[:, 0, 0] = init_x
     m0[:, 1, 0] = f_x
     m0 = jnp.array(m0)
+    P0 = jnp.array(P0)
     # print(m0[:, 0, 0])
     # print(m0[:, 1, 0])
     # exit(0)
@@ -92,7 +111,9 @@ if __name__ == "__main__":
     results = ms[-1]
 
     import matplotlib.pyplot as plt
-
+    
+    # for i in range(784):
+    #     plt.plot(np.asarray(ms)[:,i,0,0])
     plt.imshow(results[:-1, 0, 0].reshape(28, 28))
     plt.show()
 
