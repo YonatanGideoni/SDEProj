@@ -75,7 +75,8 @@ def solve_magnani(min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
 # Expects a list of results for all steps
 # ms -> [785, steps]
 def plot_trajectory(ms, ts, solver_name: str = ''):
-    # m -> [steps]
+    plt.figure()
+
     for m in ms:
         plt.plot(ts, m)
 
@@ -83,12 +84,11 @@ def plot_trajectory(ms, ts, solver_name: str = ''):
     plt.ylabel("x")
     plt.title("Pixel's values over time for " + solver_name)
 
-    plt.show()
-
 
 # TODO - plot also time
-def plot_results(ms):
+def plot_results(ms, title: str = ''):
     fig = plt.figure()  # make figure
+    plt.title(title)
 
     # make axesimage object
     # the vmin and vmax here are very important to get the color map correct
@@ -114,12 +114,19 @@ if __name__ == "__main__":
     # FID / some accuracy vs step size and/or vs runtime
     # Plot this graph for various solvers
     # We want to know where it starts diverging to identify phase transition
+    wp_ms, iwp_ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True, prior='WP')
+    wp_ms = torch.stack(wp_ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
+    plot_results(wp_ms, title='IWP')
 
-    ms, ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True)
-    ms = torch.stack(ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
-    plot_results(ms)
-    plot_trajectory(ms[:-1], ts, solver_name='IOU')
+    ou_ms, ou_ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True, prior='OU')
+    ou_ms = torch.stack(ou_ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
+    plot_results(ou_ms, title='IOU')
 
-    ms, ts = solve_scipy(1e-3, method='RK45')
-    plot_results(ms)
-    plot_trajectory(ms[:-1], ts, solver_name='Scipy RK45')
+    scipy_ms, scipy_ts = solve_scipy(1e-3, method='RK45')
+    plot_results(scipy_ms, title='Scipy RK45')
+
+    plot_trajectory(wp_ms[:-1], iwp_ts, solver_name='IWP')
+    plot_trajectory(ou_ms[:-1], ou_ts, solver_name='IOU')
+    plot_trajectory(scipy_ms[:-1], scipy_ts, solver_name='Scipy RK45')
+
+    plt.show()
