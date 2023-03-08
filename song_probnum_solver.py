@@ -124,17 +124,14 @@ if __name__ == "__main__":
     # FID / some accuracy vs step size and/or vs runtime
     # Plot this graph for various solvers
     # We want to know where it starts diverging to identify phase transition
-    wp_ms, iwp_ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True, prior='WP')
-    wp_ms = torch.stack(wp_ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
-    plot_results(wp_ms, title='IWP')
     
     from timeit import default_timer as timer
     import copy
 
     # Define some starting point
     t = torch.ones(BS, device=DEVICE)
-    init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
+    init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
+    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
 
     # Ground truth
     print("Computing ground truth")
