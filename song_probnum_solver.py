@@ -56,7 +56,6 @@ def visualise_results(results):
 if __name__ == "__main__":
     
     import odesolver
-    import jax.numpy as jnp
     import matplotlib.pyplot as plt
 
     t0 = 0.01
@@ -96,8 +95,8 @@ if __name__ == "__main__":
 
     m0[:, 0, 0] = init_x
     m0[:, 1, 0] = f_x
-    m0 = jnp.array(m0)
-    P0 = jnp.array(P0)
+    m0 = torch.Tensor(m0)
+    P0 = torch.Tensor(P0)
     # print(m0[:, 0, 0])
     # print(m0[:, 1, 0])
     # exit(0)
