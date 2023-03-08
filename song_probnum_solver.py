@@ -15,6 +15,10 @@ from probnum.diffeq.odefilter import ODEFilter
 from probnum.diffeq.stepsize import ConstantSteps, AdaptiveSteps
 from probnum.diffeq import probsolve_ivp
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+
 def ode_func(t, x):
     """The ODE function for the black-box solver."""
     time_steps = np.ones((img_tens_shape[0],)) * t
@@ -87,9 +91,24 @@ def plot_trajectory(ms, ts):
     
     plt.show()
 
-# def plot_results(ms):
+def plot_results(ms):
 
-#     plt.imshow(ms, )
+    fig = plt.figure() # make figure
+
+    # make axesimage object
+    # the vmin and vmax here are very important to get the color map correct
+    im = plt.imshow(ms[:-1, 0].reshape(28, 28), cmap='gray', vmin=0, vmax=1.0)
+
+    # function to update figure
+    def updatefig(j):
+        # set the data in the axesimage object
+        im.set_array(ms[:-1, j].reshape(28, 28))
+        # return the artists set
+        return [im]
+    # kick off the animation
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(ms[0])), 
+                                interval=75, blit=True, repeat_delay=2000)
+    plt.show()
 
 
 
@@ -104,23 +123,15 @@ if __name__ == "__main__":
     
     import odesolver
     import jax.numpy as jnp
-    import matplotlib.pyplot as plt
 
-    # ms, ts = solve_magnani(1e-3, 1e-3, print_t=True)
+    ms, ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True)
+    ms = np.array(ms)[:, 0, 0].reshape(784, 0)
+    plot_results(ms)
+    plot_trajectory(ms, ts)
+
     ms, ts = solve_scipy(1e-3, method='RK45')
-    # breakpoint()
-    # plt.imshow(ms[:-1, -1].reshape(28, 28))
-    plot_trajectory(ms[:-1], ts)
-    # plt.show()
-
-    # # results = ms[-1]
-
-    # import matplotlib.pyplot as plt
-    
-    # # for i in range(784):
-    # #     plt.plot(np.asarray(ms)[:,i,0,0])
-    # plt.imshow(results[:-1, 0, 0].reshape(28, 28))
-    # plt.show()
+    plot_results(ms)
+    plot_trajectory(ms, ts)
 
 # if __name__ == "__main__":
 
