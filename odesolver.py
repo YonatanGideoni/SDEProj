@@ -159,7 +159,7 @@ def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU',
     for t_i in ts[:-1]:
         # Predict
         m_minus, P_minus = kalman_predict(m, P, t_i)
-        z = f(t_i, m_minus[:, 0, :].T).T  # This odd transpose is because we assume
+        z = torch.Tensor(f(t_i, m_minus[:, 0, :].T).T)  # This odd transpose is because we assume
         # the vector fields second axis is dimension of the state space
 
         # Update
