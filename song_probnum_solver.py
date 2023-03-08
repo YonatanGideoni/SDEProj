@@ -17,105 +17,110 @@ from probnum.diffeq import probsolve_ivp
 
 def ode_func(t, x):
     """The ODE function for the black-box solver."""
-    # Jax bullshit
-    t = np.asarray(t)
-    x = np.asarray(x)
-
     time_steps = np.ones((img_tens_shape[0],)) * t
-    # sample = x[:-img_tens_shape[0]]
-    sample = x[:, :-1]
-    # breakpoint()
-    print("EE", torch.tensor(t))
+    sample = x[:-img_tens_shape[0]]
     g = diffusion_coeff(torch.tensor(t), SIGMA).cpu().numpy()
     sample_grad = -0.5 * g ** 2 * score_eval_wrapper(sample, time_steps)
     logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
-    print(t)
     return np.concatenate([sample_grad, logp_grad], axis=0)
 
-def solve_rk45(min_timestep, t_final):
+def solve_scipy(min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
     t = torch.ones(BS, device=DEVICE)
     init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
-    res = integrate.solve_ivp(ode_func, (t_final, min_timestep), init_x, rtol=1e-5, atol=1e-5, method='RK45')
-    return res
+    res = integrate.solve_ivp(ode_func, (1.0, min_timestep), init_x, rtol=rtol, atol=atol, method=method)
+    return res["y"], res["t"]
 
-def visualise_results(results):
+def solve_magnani(min_timestep, h=1e-3,  q=2, prior='OU', print_t=False):
 
-    fig = plt.figure(figsize=(4., 4.))
-    grid = ImageGrid(fig, 111,  # similar to subplot(111)
-                    nrows_ncols=(2, 2),  # creates 2x2 grid of axes
-                    axes_pad=0.1,  # pad between axes in inch.
-                    )
+    steps = int(1.0 / h)
 
-    for ax, res in zip(grid, results):
-        im = res["y"][:-1, -1].reshape(28, 28)
-        ax.imshow(im.clip(0.0, 1.0))
+    # Define special version of ODE func that deals with JAX
+    def ode_func(t, x):
+        """The ODE function for the black-box solver."""
+        t = np.asarray(t)
+        x = np.asarray(x)
+        time_steps = np.ones((img_tens_shape[0],)) * t
+        sample = x[:, :-1]
+        g = diffusion_coeff(torch.tensor(t), SIGMA).cpu().numpy()
+        sample_grad = -0.5 * g ** 2 * score_eval_wrapper(sample, time_steps)
+        logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
 
-    plt.show()
+        if print_t is True:
+            print(t)
 
-if __name__ == "__main__":
-    
-    import franciscopls2
-    import jax.numpy as jnp
-    import matplotlib.pyplot as plt
+        return np.concatenate([sample_grad, logp_grad], axis=0)
 
-    t0 = 0.01
-    t1 = 1.0
-    h = 1e-3
-    steps = int(t1 / h)
+    # Initial x sampled from distribution at t=1.0
+    t = torch.ones(BS, device=DEVICE)
+    x_0 = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
+    x_0 = np.concatenate([x_0.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
 
-    q = 2
+    # Compute derivative at x_0 when t=1.0
+    f_x0 = ode_func(1.0, x_0.reshape(1, 785))
 
+    # Initialise initial means and covariances
     m0 = np.zeros((785, q + 1, 1))
     P0 = np.zeros((785, q + 1, q + 1))
     for i in range(1, q+1):
         P0[:, i, i] = 1
 
-    t = torch.ones(BS, device=DEVICE)
-    init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
-
-    # res = integrate.solve_ivp(ode_func, (t1, h), init_x, rtol=1e-5, atol=1e-5, method='RK45')
-
-    # t = h
-    # x = init_x
-    # for _ in range(steps):
-    #     # breakpoint()
-    #     print(abs(x[:-1]).mean())
-    #     x -= ode_func(max(1-t,h), x) * h
-    #     t += h
-    # # breakpoint()
-    # im = res["y"][:-1, -1].reshape(28, 28)
-    # im = x[:-1].reshape(28, 28)
-    # plt.imshow(im)
-    # plt.show()
-
-    # Fix initialisation of m0 s.t. (x_0, f(0, x_0), 0,0,...) or ??? (x_0, f(1.0, x_0), 0,0,...)
-    # in the rows
-    f_x = ode_func(1.0, init_x.reshape(1, 785))
-
-    m0[:, 0, 0] = init_x
-    m0[:, 1, 0] = f_x
+    # Set means and covs as defined in Magnani et al. p7
+    m0[:, 0, 0] = x_0
+    m0[:, 1, 0] = f_x0
     m0 = jnp.array(m0)
     P0 = jnp.array(P0)
-    # print(m0[:, 0, 0])
-    # print(m0[:, 1, 0])
-    # exit(0)
 
-    print(m0.shape, P0.shape)
-    ms, ts = franciscopls2.solve_kf(m0, P0, lambda t, x : ode_func(1.0 - t, x), t0=t0, t1=t1, steps=steps, q=q)
+    # Solve the ODE!
+    ms, ts = odesolver.solve_kf(m0, P0, lambda t, x : ode_func(1.0 - t, x), t0=min_timestep, t1=1.0, steps=steps, q=q, method=prior)
 
-    init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
+    return ms, ts
 
-    results = ms[-1]
+# Expects a list of results for all steps
+def plot_trajectory(ms, ts):
 
-    import matplotlib.pyplot as plt
+    for m in ms:
+        plt.plot(ts, m)
+
+    plt.xlabel("Time / s")
+    plt.ylabel("x")
     
-    # for i in range(784):
-    #     plt.plot(np.asarray(ms)[:,i,0,0])
-    plt.imshow(results[:-1, 0, 0].reshape(28, 28))
     plt.show()
+
+# def plot_results(ms):
+
+#     plt.imshow(ms, )
+
+
+
+if __name__ == "__main__":
+
+    # Plot the result and trajectory
+    # and plot the animation over time
+
+    # FID / some accuracy vs step size and/or vs runtime
+    # Plot this graph for various solvers
+    # We want to know where it starts diverging to identify phase transition
+    
+    import odesolver
+    import jax.numpy as jnp
+    import matplotlib.pyplot as plt
+
+    # ms, ts = solve_magnani(1e-3, 1e-3, print_t=True)
+    ms, ts = solve_scipy(1e-3, method='RK45')
+    # breakpoint()
+    # plt.imshow(ms[:-1, -1].reshape(28, 28))
+    plot_trajectory(ms[:-1], ts)
+    # plt.show()
+
+    # # results = ms[-1]
+
+    # import matplotlib.pyplot as plt
+    
+    # # for i in range(784):
+    # #     plt.plot(np.asarray(ms)[:,i,0,0])
+    # plt.imshow(results[:-1, 0, 0].reshape(28, 28))
+    # plt.show()
 
 # if __name__ == "__main__":
 
