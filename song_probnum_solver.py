@@ -106,7 +106,7 @@ def plot_results(ms):
         # return the artists set
         return [im]
     # kick off the animation
-    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(ms[0])), 
+    ani = animation.FuncAnimation(fig, updatefig, frames=range(len(ms[0])),
                                 interval=75, blit=True, repeat_delay=2000)
     plt.show()
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # FID / some accuracy vs step size and/or vs runtime
     # Plot this graph for various solvers
     # We want to know where it starts diverging to identify phase transition
-    
+
     import odesolver
     import jax.numpy as jnp
 
