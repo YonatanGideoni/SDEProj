@@ -18,16 +18,12 @@ def ode_func(t, x):
     logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
     return np.concatenate([sample_grad, logp_grad], axis=0)
 
-
-def solve_scipy(min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
-    t = torch.ones(BS, device=DEVICE)
-    init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
+def solve_scipy(init_x, min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
     res = integrate.solve_ivp(ode_func, (1.0, min_timestep), init_x, rtol=rtol, atol=atol, method=method)
     return res["y"], res["t"]
 
 
-def solve_magnani(min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
+def solve_magnani(init_x, min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
     steps = int(1.0 / h)
 
     # Define special version of ODE func that deals with JAX
@@ -47,6 +43,7 @@ def solve_magnani(min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
         return np.concatenate([sample_grad, logp_grad], axis=0)
 
     # Initial x sampled from distribution at t=1.0
+    x_0 = init_x
     t = torch.ones(BS, device=DEVICE)
     x_0 = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     x_0 = np.concatenate([x_0.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
@@ -106,6 +103,19 @@ def plot_results(ms, title: str = ''):
                                   interval=75, blit=True, repeat_delay=2000)
     plt.show()
 
+def euler_int(x, t0: float, dt: float):
+    t = t0
+    res=[x]
+    ts=[t]
+    while t < 1.0:
+        t+=dt
+        # breakpoint()
+        x-=ode_func(max(t0, 1-t),x)*dt
+
+        res.append(x)
+        ts.append(t)
+    
+    return x, ts
 
 if __name__ == "__main__":
     # Plot the result and trajectory
@@ -117,16 +127,125 @@ if __name__ == "__main__":
     wp_ms, iwp_ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True, prior='WP')
     wp_ms = torch.stack(wp_ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
     plot_results(wp_ms, title='IWP')
+    
+    from timeit import default_timer as timer
+    import copy
 
-    ou_ms, ou_ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True, prior='OU')
-    ou_ms = torch.stack(ou_ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
-    plot_results(ou_ms, title='IOU')
+    # Define some starting point
+    t = torch.ones(BS, device=DEVICE)
+    init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
+    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
 
-    scipy_ms, scipy_ts = solve_scipy(1e-3, method='RK45')
-    plot_results(scipy_ms, title='Scipy RK45')
+    # Ground truth
+    print("Computing ground truth")
+    ms, ts = solve_scipy(copy.deepcopy(init_x), 1e-3, rtol=1e-8, atol=1e-8, method='RK45')
+    gt = ms[:-1, -1]
+    # plot_trajectory(ms[:-1], ts)
+    # plot_results(ms)
 
-    plot_trajectory(wp_ms[:-1], iwp_ts, solver_name='IWP')
-    plot_trajectory(ou_ms[:-1], ou_ts, solver_name='IOU')
-    plot_trajectory(scipy_ms[:-1], scipy_ts, solver_name='Scipy RK45')
+    # euler integration
+    hs = [0.25, 0.2, 1e-1, 1e-2, 1e-3] #[ 1e-4, 1e-5]
+    euler_mses = []
+    euler_times = []
+    print("Euler integration:")
+    for h in hs:
+        print(f"{h}")
 
+        loss = 0
+        time = 0
+        for i in range(3):
+            start = timer()
+            ms, ts = euler_int(copy.deepcopy(init_x), t0=1e-3, dt=h)
+            end = timer()
+
+            # plot_results(np.array(ms))
+
+            res = ms[:-1]
+            mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
+            # print(mse_loss)
+            loss += mse_loss.item()
+            time += end - start
+
+        euler_mses.append(loss / 3.0)
+        euler_times.append(time / 3.0)
+
+    # Magnani integration
+    hs = [0.25, 0.2, 1e-1, 1e-2, 8e-3, 5e-3, 3e-3, 2e-3, 1e-3] #[ 1e-4, 1e-5]
+    mses = []
+    times = []
+    print("Magnani integration:")
+    for h in hs:
+        print(f"{h}")
+
+        loss = 0
+        time = 0
+        for i in range(3):
+            start = timer()
+            ms, ts = solve_magnani(copy.deepcopy(init_x), min_timestep=1e-3, h=h)
+            end = timer()
+            ms = torch.stack(ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
+
+            res = ms[:-1, -1]
+            mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
+            loss += mse_loss.item()
+            time += end - start
+
+        mses.append(loss / 3.0)
+        times.append(time / 3.0)
+
+    # Magnani integration
+    hs = [0.25, 0.2, 1e-1, 1e-2, 8e-3, 5e-3, 3e-3, 2e-3, 1e-3] #[ 1e-4, 1e-5]
+    iwp_mses = []
+    iwp_times = []
+    print("Magnani IWP integration:")
+    for h in hs:
+        print(f"{h}")
+
+        loss = 0
+        time = 0
+        for i in range(3):
+            start = timer()
+            ms, ts = solve_magnani(copy.deepcopy(init_x), min_timestep=1e-3, h=h, prior='IWP')
+            end = timer()
+            ms = torch.stack(ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
+
+            res = ms[:-1, -1]
+            mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
+            loss += mse_loss.item()
+            time += end - start
+
+        iwp_mses.append(loss / 3.0)
+        iwp_times.append(time / 3.0)
+
+    tols = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    sci_mses = []
+    sci_times = []
+    for tol in tols:
+        
+        loss = 0
+        time = 0
+        for i in range(3):
+            start = timer()
+            ms, ts = solve_scipy(copy.deepcopy(init_x), 1e-3, atol=tol, rtol=tol, method='RK45')
+            end = timer()
+            res = ms[:-1, -1]
+            # mse_loss = np.mean((res - gt) ** 2)
+            mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
+            # print(mse_loss)
+            # breakpoint()
+            loss += mse_loss.item()
+            time += end - start
+
+        sci_mses.append(loss / 3.0)
+        sci_times.append(time / 3.0)
+
+    plt.plot(times, mses, label='Magnani et al. (IOUP)')
+    plt.plot(euler_times, euler_mses, label='Euler')
+    plt.plot(sci_times, sci_mses, label='SciPy RK45')
+    plt.plot(iwp_times, iwp_mses, label='Magnani et al. (IWP)')
+    plt.xlabel("Runtime")
+    plt.ylabel("MSE")
+    plt.legend()
+
+    plt.semilogy()
     plt.show()
