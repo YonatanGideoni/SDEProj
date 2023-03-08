@@ -1,13 +1,12 @@
-# TODO - find way to load model
 import functools
 
 import numpy as np
 import torch
 from torch import nn
 
-from consts import DEVICE
+from consts import DEVICE, IMG_TENS_SHAPE, SIGMA
 
-SIGMA: float = 25.0
+epsilon = torch.randn(*IMG_TENS_SHAPE, device=DEVICE)  # TODO - regenerate each time
 
 
 class Dense(nn.Module):
@@ -38,7 +37,7 @@ class GaussianFourierProjection(nn.Module):
 class ScoreNet(nn.Module):
     """A time-dependent score-based model built upon U-Net architecture."""
 
-    def __init__(self, marginal_prob_std, channels=[32, 64, 128, 256], embed_dim=256):
+    def __init__(self, marginal_prob_std, channels=(32, 64, 128, 256), embed_dim=256):
         """Initialize a time-dependent score-based network.
 
         Args:
@@ -141,13 +140,6 @@ def marginal_prob_std(t, sigma):
     return torch.sqrt((sigma ** (2 * t) - 1.) / 2. / np.log(sigma))
 
 
-# TODO - find shape+dtype of x
-IMG_LEN = 28
-BS = 1
-img_tens_shape = (BS, 1, IMG_LEN, IMG_LEN)
-epsilon = torch.randn(*img_tens_shape, device=DEVICE)
-
-
 def diffusion_coeff(t, sigma):
     """Compute the diffusion coefficient of our SDE.
 
@@ -172,7 +164,7 @@ def divergence_eval(sample, time_steps, epsilon):
 
 def score_eval_wrapper(sample, time_steps):
     """A wrapper for evaluating the score-based model for the black-box ODE solver."""
-    sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(img_tens_shape)
+    sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(IMG_TENS_SHAPE)
     time_steps = torch.tensor(time_steps, device=DEVICE, dtype=torch.float32).reshape((sample.shape[0],))
     with torch.no_grad():
         score = score_model(sample, time_steps)
@@ -183,7 +175,7 @@ def divergence_eval_wrapper(sample, time_steps):
     """A wrapper for evaluating the divergence of score for the black-box ODE solver."""
     with torch.no_grad():
         # Obtain x(t) by solving the probability flow ODE.
-        sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(img_tens_shape)
+        sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(IMG_TENS_SHAPE)
         time_steps = torch.tensor(time_steps, device=DEVICE, dtype=torch.float32).reshape((sample.shape[0],))
         # Compute likelihood.
         div = divergence_eval(sample, time_steps, epsilon)

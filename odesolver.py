@@ -4,12 +4,8 @@ import numpy as np
 import torch
 from functorch import vmap
 
+
 # Implement algorithm  for 1 dimension, and vmap over dimensions
-h = 0.1
-q = 1
-sigma = 1.0
-
-
 def factorial(n):
     return torch.round(torch.exp(torch.special.gammaln(torch.tensor(n + 1))), decimals=0)
 
@@ -122,7 +118,7 @@ def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU',
 
     all_ms = [m0]
 
-    h = torch.tensor(-(t1 - t0) / steps)
+    h = torch.tensor((t1 - t0) / steps)
     ts = torch.linspace(float(t0), float(t1), steps + 1)
 
     if method == 'OU':
@@ -164,43 +160,3 @@ def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU',
         all_ms.append(m_minus)
 
     return all_ms, ts
-
-
-if __name__ == "__main__":
-    t1 = 8
-    h = 0.5
-    steps = int(t1 / h)
-
-    q = 2
-    m0 = torch.Tensor([1., 1.0])
-    P0 = torch.Tensor([
-        [0, 0],
-        [0, 1],
-    ])
-
-    # TODO - torchify
-    m0 = torch.zeros(q + 1).at[:2].set(m0)
-    P0 = torch.eye(q + 1).at[0, 0].set(0.0)
-
-    # quick 2D test
-
-    m0 = torch.Tensor([m0, m0])[..., None]
-    P0 = torch.Tensor([P0, P0])
-
-
-    def g(t, x):
-        scaling = torch.Tensor([1, 1.06])[None, ...]
-        return x * scaling
-
-
-    ms, ts = solve_kf(m0, P0, g, t1=t1, steps=steps, q=q)
-
-    import matplotlib.pyplot as plt
-
-    ms = torch.Tensor(ms)
-    plt.plot(ts, ms[:, 0, 0])
-    plt.plot(ts, torch.exp(ts))
-    plt.ylim(top=2500)
-    plt.show()
-    # plt.plot(ts, ms[:, 1, 0])
-    # plt.plot(ts, ms[:, 1, 0])
