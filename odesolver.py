@@ -125,10 +125,6 @@ def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU',
     h = torch.tensor(-(t1 - t0) / steps)
     ts = torch.linspace(float(t0), float(t1), steps + 1)
 
-    print(f'Using t0={t0}, t1={t1} for {steps} steps')
-    print(f'ts={ts}')
-    print(f'Using h={h} for {steps} steps')
-
     if method == 'OU':
         A = get_A_OU(q, h, theta=theta)
         Q = get_Q_OU(q, h, theta=theta, sigma=sigma)
@@ -197,13 +193,11 @@ if __name__ == "__main__":
         return x * scaling
 
 
-    print(m0.shape, P0.shape)
     ms, ts = solve_kf(m0, P0, g, t1=t1, steps=steps, q=q)
 
     import matplotlib.pyplot as plt
 
     ms = torch.Tensor(ms)
-    print(ms.shape, P0.shape)
     plt.plot(ts, ms[:, 0, 0])
     plt.plot(ts, torch.exp(ts))
     plt.ylim(top=2500)
