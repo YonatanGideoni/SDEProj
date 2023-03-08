@@ -1,13 +1,12 @@
-# TODO - find way to load model
 import functools
 
 import numpy as np
 import torch
 from torch import nn
 
-from consts import DEVICE
+from consts import DEVICE, img_tens_shape, SIGMA
 
-SIGMA: float = 25.0
+epsilon = torch.randn(*img_tens_shape, device=DEVICE)  # TODO - regenerate each time
 
 
 class Dense(nn.Module):
@@ -38,7 +37,7 @@ class GaussianFourierProjection(nn.Module):
 class ScoreNet(nn.Module):
     """A time-dependent score-based model built upon U-Net architecture."""
 
-    def __init__(self, marginal_prob_std, channels=[32, 64, 128, 256], embed_dim=256):
+    def __init__(self, marginal_prob_std, channels=(32, 64, 128, 256), embed_dim=256):
         """Initialize a time-dependent score-based network.
 
         Args:
@@ -139,13 +138,6 @@ def marginal_prob_std(t, sigma):
     """
     t = torch.tensor(t, device=DEVICE)
     return torch.sqrt((sigma ** (2 * t) - 1.) / 2. / np.log(sigma))
-
-
-# TODO - find shape+dtype of x
-IMG_LEN = 28
-BS = 1
-img_tens_shape = (BS, 1, IMG_LEN, IMG_LEN)
-epsilon = torch.randn(*img_tens_shape, device=DEVICE)
 
 
 def diffusion_coeff(t, sigma):

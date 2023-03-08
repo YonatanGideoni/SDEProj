@@ -4,12 +4,8 @@ import numpy as np
 import torch
 from functorch import vmap
 
+
 # Implement algorithm  for 1 dimension, and vmap over dimensions
-h = 0.1
-q = 1
-sigma = 1.0
-
-
 def factorial(n):
     return torch.round(torch.exp(torch.special.gammaln(torch.tensor(n + 1))), decimals=0)
 
