@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # We want to know where it starts diverging to identify phase transition
 
     ms, ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True)
-    ms = np.array(ms).transpose(1, 0, 2, 3)[:, :, 0, 0]
+    ms = torch.stack(ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
     plot_results(ms)
     plot_trajectory(ms[:-1], ts)
 
