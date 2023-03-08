@@ -45,9 +45,6 @@ def solve_magnani(init_x, min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
 
     # Initial x sampled from distribution at t=1.0
     x_0 = init_x
-    t = torch.ones(BS, device=DEVICE)
-    x_0 = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-    x_0 = np.concatenate([x_0.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
 
     # Compute derivative at x_0 when t=1.0
     f_x0 = ode_func(1.0, x_0.reshape(1, 785))
