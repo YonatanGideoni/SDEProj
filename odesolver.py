@@ -118,7 +118,7 @@ def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU',
 
     all_ms = [m0]
 
-    h = torch.tensor(-(t1 - t0) / steps)
+    h = torch.tensor((t1 - t0) / steps)
     ts = torch.linspace(float(t0), float(t1), steps + 1)
 
     print(f'Using t0={t0}, t1={t1} for {steps} steps')

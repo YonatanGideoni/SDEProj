@@ -67,8 +67,7 @@ def solve_magnani(min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
     P0 = torch.Tensor(P0)
 
     # Solve the ODE!
-    ms, ts = odesolver.solve_kf(m0, P0, lambda t, x: ode_func(1.0 - t, x), t0=min_timestep, t1=1.0, steps=steps, q=q,
-                                method=prior)
+    ms, ts = odesolver.solve_kf(m0, P0, ode_func, t0=1.0, t1=min_timestep, steps=steps, q=q, method=prior)
 
     return ms, ts
 
