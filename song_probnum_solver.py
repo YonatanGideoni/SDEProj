@@ -1,23 +1,18 @@
 # Draw the random Gaussian sample for Skilling-Hutchinson's estimator.
-import functools
 
 import numpy as np
 import torch
 from scipy import integrate
-from torch import nn
 
 from consts import DEVICE
 from song_utils import diffusion_coeff, score_eval_wrapper, divergence_eval_wrapper, img_tens_shape, marginal_prob_std, \
     BS, SIGMA
 
-from probnum import diffeq, filtsmooth, randvars, randprocs, problems
-from probnum.diffeq.odefilter import ODEFilter
-from probnum.diffeq.stepsize import ConstantSteps, AdaptiveSteps
-from probnum.diffeq import probsolve_ivp
-
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+import odesolver
+import jax.numpy as jnp
 
 def ode_func(t, x):
     """The ODE function for the black-box solver."""
@@ -81,8 +76,10 @@ def solve_magnani(min_timestep, h=1e-3,  q=2, prior='OU', print_t=False):
     return ms, ts
 
 # Expects a list of results for all steps
+# ms -> [785, steps]
 def plot_trajectory(ms, ts):
 
+    # m -> [steps]
     for m in ms:
         plt.plot(ts, m)
 
@@ -97,7 +94,7 @@ def plot_results(ms):
 
     # make axesimage object
     # the vmin and vmax here are very important to get the color map correct
-    im = plt.imshow(ms[:-1, 0].reshape(28, 28), cmap='gray', vmin=0, vmax=1.0)
+    im = plt.imshow(ms[:-1, 0].reshape(28, 28), cmap=plt.get_cmap('jet'), vmin=0, vmax=1.0)
 
     # function to update figure
     def updatefig(j):
@@ -121,104 +118,11 @@ if __name__ == "__main__":
     # Plot this graph for various solvers
     # We want to know where it starts diverging to identify phase transition
 
-    import odesolver
-    import jax.numpy as jnp
-
     ms, ts = solve_magnani(min_timestep=1e-2, h=1e-2, print_t=True)
-    ms = np.array(ms)[:, 0, 0].reshape(784, 0)
+    ms = np.array(ms).transpose(1, 0, 2, 3)[:, :, 0, 0]
     plot_results(ms)
-    plot_trajectory(ms, ts)
+    plot_trajectory(ms[:-1], ts)
 
     ms, ts = solve_scipy(1e-3, method='RK45')
     plot_results(ms)
-    plot_trajectory(ms, ts)
-
-# if __name__ == "__main__":
-
-#     import matplotlib.pyplot as plt
-
-#     t0 = 1e-3
-#     tmax = 1.0
-#     t = torch.ones(BS, device=DEVICE)
-#     init_x = torch.randn(*img_tens_shape, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-#     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((img_tens_shape[0],))], axis=0)
-
-#     print("Solving basic")
-#     sol = probsolve_ivp(
-#         f=lambda t, x: ode_func(1.0 - t, x),
-#         t0=t0,
-#         tmax=tmax,
-#         y0=init_x,
-#         adaptive=False,
-#         step=0.1,
-#         dense_output=False,
-#         method='EK1',
-#         algo_order=1,
-#     )
-#     print("Solved basic")
-#     print(sol)
-
-#     # ivp = problems.InitialValueProblem(t0=t0, tmax=tmax, f=lambda t, x: ode_func(1.0 - t, x), y0=init_x)
-#     # print("Initialised")
-
-#     iwp = randprocs.markov.integrator.IntegratedWienerProcess(
-#         initarg=ivp.t0,
-#         num_derivatives=1,
-#         wiener_process_dimension=ivp.dimension
-#     )
-#     # iwp = randprocs.markov.integrator.IntegratedOrnsteinUhlenbeckProcess(
-#     #     initarg=ivp.t0,
-#     #     driftspeed=1.,
-#     #     num_derivatives=2,
-#     #     wiener_process_dimension=ivp.dimension,
-#     # )
-
-#     dt = 0.5
-#     # steprule = ConstantSteps(dt)
-#     steprule = AdaptiveSteps(0.1, 1e5, 1e5)
-
-#     solver = ODEFilter(
-#         steprule=steprule,
-#         prior_process=iwp,
-#     )
-
-#     print("Starting solve")
-#     odesol = solver.solve(ivp)
-#     print("Ended solve")
-
-#     evalgrid = np.arange(ivp.t0, ivp.tmax, step=0.1)
-#     sol = odesol(evalgrid)
-
-#     plt.plot(evalgrid, sol.mean, "o-", linewidth=1)
-#     plt.xlabel("Time")
-#     plt.show()
-
-# if __name__ == '__main__':
-
-#     # Solve for n initialisations
-#     results = []
-#     n = 4
-#     for i in range(n):
-#         res = solve_rk45(min_timestep=1e-3, t_final=1.0)
-#         results.append(res)
-
-#     import matplotlib.pyplot as plt
-#     from mpl_toolkits.axes_grid1 import ImageGrid
-
-#     visualise_results(results)
-
-#     # Plot ODE solution for first result
-#     res = results[0]
-#     print(res)
-#     for i in range(res["y"].shape[0] - 1):
-#         plt.plot(res["t"], res["y"][i], label="Scipy RK45")
-#     plt.ylabel("ODE Solution")
-#     plt.xlabel("t")
-#     plt.show()
-
-#     # How many pixels get clipped?
-#     for res in results:
-#         im = res["y"][:-1, -1].reshape(28, 28)
-#         clipped = np.extract(im.flatten() > 0.0, im.flatten())
-#         clipped = np.extract(clipped < 1.0, clipped)
-#         print(f"Of {len(im.flatten())} pixels, {len(clipped)} were not clipped")
+    plot_trajectory(ms[:-1], ts)
