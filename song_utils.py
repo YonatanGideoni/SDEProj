@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from consts import DEVICE, img_tens_shape, SIGMA
+from consts import DEVICE, IMG_TENS_SHAPE, SIGMA
 
-epsilon = torch.randn(*img_tens_shape, device=DEVICE)  # TODO - regenerate each time
+epsilon = torch.randn(*IMG_TENS_SHAPE, device=DEVICE)  # TODO - regenerate each time
 
 
 class Dense(nn.Module):
@@ -164,7 +164,7 @@ def divergence_eval(sample, time_steps, epsilon):
 
 def score_eval_wrapper(sample, time_steps):
     """A wrapper for evaluating the score-based model for the black-box ODE solver."""
-    sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(img_tens_shape)
+    sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(IMG_TENS_SHAPE)
     time_steps = torch.tensor(time_steps, device=DEVICE, dtype=torch.float32).reshape((sample.shape[0],))
     with torch.no_grad():
         score = score_model(sample, time_steps)
@@ -175,7 +175,7 @@ def divergence_eval_wrapper(sample, time_steps):
     """A wrapper for evaluating the divergence of score for the black-box ODE solver."""
     with torch.no_grad():
         # Obtain x(t) by solving the probability flow ODE.
-        sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(img_tens_shape)
+        sample = torch.tensor(sample, device=DEVICE, dtype=torch.float32).reshape(IMG_TENS_SHAPE)
         time_steps = torch.tensor(time_steps, device=DEVICE, dtype=torch.float32).reshape((sample.shape[0],))
         # Compute likelihood.
         div = divergence_eval(sample, time_steps, epsilon)
