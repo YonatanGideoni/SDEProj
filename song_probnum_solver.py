@@ -107,9 +107,10 @@ def euler_int(x, t0: float, dt: float):
     t = t0
     res=[x]
     ts=[t]
-    while t < t0:
+    while t < 1.0:
         t+=dt
-        x-=ode_func(1-t,x)*dt
+        # breakpoint()
+        x-=ode_func(max(t0, 1-t),x)*dt
 
         res.append(x)
         ts.append(t)
@@ -134,8 +135,10 @@ if __name__ == "__main__":
 
     # Ground truth
     print("Computing ground truth")
-    ms, ts = solve_scipy(init_x, 1e-3, rtol=1e-8, atol=1e-8, method='RK45')
+    ms, ts = solve_scipy(copy.deepcopy(init_x), 1e-3, rtol=1e-8, atol=1e-8, method='RK45')
     gt = ms[:-1, -1]
+    # plot_trajectory(ms[:-1], ts)
+    # plot_results(ms)
 
     # euler integration
     hs = [0.25, 0.2, 1e-1, 1e-2, 1e-3] #[ 1e-4, 1e-5]
@@ -149,8 +152,10 @@ if __name__ == "__main__":
         time = 0
         for i in range(3):
             start = timer()
-            ms, ts = euler_int(init_x, t0=1e-3, dt=h)
+            ms, ts = euler_int(copy.deepcopy(init_x), t0=1e-3, dt=h)
             end = timer()
+
+            # plot_results(np.array(ms))
 
             res = ms[:-1]
             mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
@@ -162,7 +167,7 @@ if __name__ == "__main__":
         euler_times.append(time / 3.0)
 
     # Magnani integration
-    hs = [0.25, 0.2, 1e-1, 1e-2, 1e-3] #[ 1e-4, 1e-5]
+    hs = [0.25, 0.2, 1e-1, 1e-2, 8e-3, 5e-3, 3e-3, 2e-3, 1e-3] #[ 1e-4, 1e-5]
     mses = []
     times = []
     print("Magnani integration:")
@@ -173,7 +178,7 @@ if __name__ == "__main__":
         time = 0
         for i in range(3):
             start = timer()
-            ms, ts = solve_magnani(init_x, min_timestep=1e-3, h=h)
+            ms, ts = solve_magnani(copy.deepcopy(init_x), min_timestep=1e-3, h=h)
             end = timer()
             ms = torch.stack(ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
 
@@ -185,6 +190,30 @@ if __name__ == "__main__":
         mses.append(loss / 3.0)
         times.append(time / 3.0)
 
+    # Magnani integration
+    hs = [0.25, 0.2, 1e-1, 1e-2, 8e-3, 5e-3, 3e-3, 2e-3, 1e-3] #[ 1e-4, 1e-5]
+    iwp_mses = []
+    iwp_times = []
+    print("Magnani IWP integration:")
+    for h in hs:
+        print(f"{h}")
+
+        loss = 0
+        time = 0
+        for i in range(3):
+            start = timer()
+            ms, ts = solve_magnani(copy.deepcopy(init_x), min_timestep=1e-3, h=h, prior='IWP')
+            end = timer()
+            ms = torch.stack(ms).permute(1, 0, 2, 3)[:, :, 0, 0].detach().cpu().numpy()
+
+            res = ms[:-1, -1]
+            mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
+            loss += mse_loss.item()
+            time += end - start
+
+        iwp_mses.append(loss / 3.0)
+        iwp_times.append(time / 3.0)
+
     tols = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
     sci_mses = []
     sci_times = []
@@ -194,7 +223,7 @@ if __name__ == "__main__":
         time = 0
         for i in range(3):
             start = timer()
-            ms, ts = solve_scipy(init_x, 1e-3, atol=tol, rtol=tol, method='RK45')
+            ms, ts = solve_scipy(copy.deepcopy(init_x), 1e-3, atol=tol, rtol=tol, method='RK45')
             end = timer()
             res = ms[:-1, -1]
             # mse_loss = np.mean((res - gt) ** 2)
@@ -207,11 +236,13 @@ if __name__ == "__main__":
         sci_mses.append(loss / 3.0)
         sci_times.append(time / 3.0)
 
-    plt.plot(times, mses, label='Magnani et al.')
+    plt.plot(times, mses, label='Magnani et al. (IOUP)')
     plt.plot(euler_times, euler_mses, label='Euler')
     plt.plot(sci_times, sci_mses, label='SciPy RK45')
+    plt.plot(iwp_times, iwp_mses, label='Magnani et al. (IWP)')
     plt.xlabel("Runtime")
     plt.ylabel("MSE")
+    plt.legend()
 
     plt.semilogy()
     plt.show()
