@@ -22,9 +22,7 @@ def solve_scipy(init_x, min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
     return res["y"], res["t"]
 
 
-def solve_magnani(init_x, min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
-    steps = int(1.0 / h)
-
+def solve_magnani(init_x, min_timestep, steps, q=2, prior='OU', print_t=False):
     # Define special version of ODE func that deals with JAX
     def ode_func(t, x):
         """The ODE function for the black-box solver."""
@@ -65,35 +63,27 @@ def solve_magnani(init_x, min_timestep, h=1e-3, q=2, prior='OU', print_t=False):
     return ms, ts
 
 
-def second_order_heun_int(x, t0: float, dt: float, tmax: float = 1.0):
-    t = tmax
+def second_order_heun_int(x, ts: np.array):
     res = [x]
-    ts = [t]
-    while t > t0:
+    dt = abs(ts[0] - ts[1])
+    for t in ts:
         approx_grad = ode_func(t, x)
         approx_x = x - approx_grad * dt
 
-        # TODO: t - dt?
-        x -= (approx_grad + ode_func(max(t0, t - dt), approx_x)) * dt / 2
+        x -= (approx_grad + ode_func(t - dt, approx_x)) * dt / 2
 
         res.append(x)
-        ts.append(t)
-
-        t -= dt
 
     return torch.tensor(res).permute(1, 0), ts
 
 
-def euler_int(x, t0: float, dt: float, tmax: float = 1.0):
-    t = tmax
+def euler_int(x, ts: np.array):
     res = [x]
-    ts = [t]
-    while t > t0:
+
+    dt = abs(ts[0] - ts[1])
+
+    for t in ts:
         x -= ode_func(t, x) * dt
-
         res.append(x)
-        ts.append(t)
-
-        t -= dt
 
     return torch.tensor(res).permute(1, 0), ts
