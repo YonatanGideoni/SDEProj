@@ -109,7 +109,9 @@ def second_order_heun_int(x, t0: float, dt: float, tmax: float = 1.0):
     while t > t0:
         approx_grad = ode_func(t, x)
         approx_x = x - approx_grad * dt
-        x -= (approx_grad + ode_func(t + dt, approx_x)) * dt / 2
+
+        # TODO: t - dt?
+        x -= (approx_grad + ode_func(max(t0, t - dt), approx_x)) * dt / 2
 
         res.append(x)
         ts.append(t)
