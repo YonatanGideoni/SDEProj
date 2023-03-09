@@ -15,8 +15,10 @@ def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_pa
         loss = 0
         runtime = 0
         for _ in range(n_trials):
+
+            init_x_copy = copy.deepcopy(init_x)
             start = timer()
-            ms, ts = solver(copy.deepcopy(init_x), **params)
+            ms, ts = solver(init_x_copy, **params)
             end = timer()
 
             if torch_stack:
