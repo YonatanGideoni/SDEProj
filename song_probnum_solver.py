@@ -22,7 +22,7 @@ def solve_scipy(init_x, min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
     return res["y"], res["t"]
 
 
-def solve_magnani(init_x, min_timestep, steps, q=2, prior='OU', print_t=False):
+def solve_magnani(init_x, min_timestep, steps, q=2, solver_params: dict = {}, prior='OU', print_t=False):
     # Define special version of ODE func that deals with JAX
     def ode_func(t, x):
         """The ODE function for the black-box solver."""
@@ -58,7 +58,8 @@ def solve_magnani(init_x, min_timestep, steps, q=2, prior='OU', print_t=False):
     P0 = torch.Tensor(P0)
 
     # Solve the ODE!
-    ms, ts = odesolver.solve_kf(m0, P0, ode_func, t0=1.0, t1=min_timestep, steps=steps, q=q, method=prior)
+    ms, ts = odesolver.solve_kf(m0, P0, ode_func, t0=1.0, t1=min_timestep, steps=steps, q=q, method=prior,
+                                **solver_params)
 
     return ms, ts
 
