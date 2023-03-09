@@ -1,6 +1,8 @@
 from matplotlib import pyplot as plt, animation as animation
 from mpl_toolkits.axes_grid1 import ImageGrid
 
+from consts import IMG_TENS_SHAPE
+
 
 def plot_trajectory(ms, ts, solver_name: str = ''):
     plt.figure()
@@ -49,9 +51,7 @@ def plot_final_results(diffusions: list, nrows_ncols: tuple = None):
                      axes_pad=0.1,  # pad between axes in inch.
                      )
 
+    # Iterating over the grid returns the Axes.
     for ax, [diffusion, title] in zip(grid, diffusions):
-        # Iterating over the grid returns the Axes.
-        ax.imshow(diffusion[:, -1])
+        ax.imshow(diffusion[:, -1].reshape(*IMG_TENS_SHAPE[-2:]))
         ax.set_title(title)
-
-    plt.imshow()
