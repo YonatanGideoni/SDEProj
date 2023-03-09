@@ -33,3 +33,25 @@ def plot_reverse_process(ms, title: str = ''):
     ani = animation.FuncAnimation(fig, updatefig, frames=range(len(ms[0])),
                                   interval=75, blit=True, repeat_delay=2000)
     plt.show()
+
+
+def plot_final_results(diffusions: list, nrows_ncols: tuple = None):
+    if nrows_ncols is None:
+        n_images = len(diffusions)
+        if n_images % 2 == 0:
+            nrows_ncols = (len(diffusions) // 2, 2)
+        else:
+            nrows_ncols = (len(diffusions), 1)
+
+    fig = plt.figure(figsize=(4., 4.))
+    grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                     nrows_ncols=nrows_ncols,
+                     axes_pad=0.1,  # pad between axes in inch.
+                     )
+
+    for ax, [diffusion, title] in zip(grid, diffusions):
+        # Iterating over the grid returns the Axes.
+        ax.imshow(diffusion[:, -1])
+        ax.set_title(title)
+
+    plt.imshow()
