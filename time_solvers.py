@@ -13,7 +13,7 @@ from song_utils import marginal_prob_std
 
 
 def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_params: list, torch_stack: bool = False,
-                n_trials: int = 3):
+                n_trials: int = 1):
     mses = []
     results_over_time = []
     runtimes = []
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
 
-    steps_list = [10, 50, 100, 500, 1000, 5000, 10000]
+    steps_list = [10, 100, 1000, 10000]
     final_time = 1e-7
 
     # Ground truth
@@ -122,7 +122,7 @@ if __name__ == "__main__":
                                                                                                         **kwargs),
                                                             sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
 
-    marker = itertools.cycle((',', '+', '.', 'o', '*'))
+    marker = itertools.cycle((',', '+', '.', 'o', '*', 'd'))
     plt.plot(ou1_times, ou1_mses, label='Magnani, q=1 (IOUP)', marker=next(marker))
     plt.plot(ou2_times, ou2_mses, label='Magnani, q=2 (IOUP)', marker=next(marker))
     plt.plot(iwp1_times, iwp1_mses, label='Magnani, q=1 (IWP)', marker=next(marker))
