@@ -7,7 +7,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from consts import BS, DEVICE, IMG_TENS_SHAPE, SIGMA
-from plot_utils import plot_final_results
+from plot_utils import plot_final_results, plot_reverse_process, plot_trajectory
 from song_probnum_solver import solve_scipy, euler_int, solve_magnani, second_order_heun_int
 from song_utils import marginal_prob_std
 
@@ -42,6 +42,27 @@ def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_pa
 
     return mses, runtimes, results_over_time
 
+def run_method(func: callable, steps_list, final_time, method_name):
+
+    fname = f'{method_name}_{final_time}_{steps_list}.pkl'
+    if os.path.isfile(fname):
+        print(f"Found cached {method_name}. Loading...")
+        with open(fname, 'rb') as f:
+            loaded_dict = pickle.load(f)
+            times, diffusions = loaded_dict["times"], loaded_dict["diffusions"]
+        mses = [torch.nn.functional.mse_loss(torch.tensor(diffusion[:, -1].flatten()), torch.tensor(gt.flatten())) for diffusion in diffusions]
+        mses = np.mean(np.array(mses).reshape(-1, 3), axis=1)
+    else:
+        print(f"Computing {method_name} integration...")
+        mses, times, diffusions = func()
+        with open(fname, 'wb') as f:
+            pickle.dump({
+                "times": times,
+                "diffusions": diffusions,
+            }, f)
+    
+    return mses, times, diffusions
+
 
 if __name__ == "__main__":
     # Plot the result and trajectory
@@ -52,75 +73,112 @@ if __name__ == "__main__":
     # We want to know where it starts diverging to identify phase transition
 
     # TODO: Use consistent torch seed
-    # torch.manual_seed(42)
+    seed = 42
+    torch.manual_seed(seed)
+    import pickle
+    import os.path
 
     # Define some starting point
     t = torch.ones(BS, device=DEVICE)
     init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
 
-    steps_list = [10, 50, 100, 500, 1000, 5000, 10000]
+    steps_list = [10, 50, 100, 1000]
     final_time = 1e-7
+    tss = [np.linspace(1.0, final_time, steps + 1) for steps in steps_list]
+    tols = [1, 1e-1, 1e-2, 1e-3]
 
     # Ground truth
     print("Computing ground truth")
-    ms, ts = solve_scipy(copy.deepcopy(init_x), final_time, rtol=1e-8, atol=1e-8, method='RK45')
+    rtol, atol = 1e-8, 1e-8
+    fname = f'gt_{final_time}_{rtol}_{atol}_{seed}.pkl'
+    if os.path.isfile(fname):
+        print("Found ground truth data. Loading...")
+        with open(fname, 'rb') as f:
+            loaded_dict = pickle.load(f)
+            ms, ts = loaded_dict["ms"], loaded_dict["ts"]
+    else:
+        print("No ground truth data found. Computing...")
+        ms, ts = solve_scipy(copy.deepcopy(init_x), final_time, rtol=1e-8, atol=1e-8, method='RK45')
+        with open(fname, 'wb') as f:
+            pickle.dump({
+                "ms": ms,
+                "ts": ts,
+            }, f)
     gt = ms[:-1, -1]
 
     # euler integration
-    tss = [np.linspace(1.0, final_time, steps + 1) for steps in steps_list]
-    print("Euler integration:")
-    euler_mses, euler_times, euler_diffusions = time_solver(init_x, gt, lambda x, **kwargs: euler_int(x, **kwargs),
-                                                            sol_params=[{'ts': ts} for ts in tss])
+    euler_mses, euler_times, euler_diffusions = run_method(
+        method_name='euler',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: euler_int(x, **kwargs),
+                                                                sol_params=[{'ts': ts} for ts in tss])
+    )
 
-    tss = [np.linspace(1.0, final_time, steps + 1) for steps in steps_list]
-    print("2nd order Heun integration:")
-    heun_mses, heun_times, heun_diffusions = time_solver(init_x, gt,
-                                                         lambda x, **kwargs: second_order_heun_int(x, **kwargs),
-                                                         sol_params=[{'ts': ts} for ts in tss])
+    heun_mses, heun_times, heun_diffusions = run_method(
+        method_name='heun',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: second_order_heun_int(x, **kwargs),
+                                  sol_params=[{'ts': ts} for ts in tss])
+    )
+    
+    ou2_mses, ou2_times, ou2_diffusions = run_method(
+        method_name='ou2',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: solve_magnani(x, min_timestep=final_time, **kwargs),
+                                    sol_params=[{'steps': steps} for steps in steps_list],
+                                    torch_stack=True)
+    )
 
-    print("Magnani IOU integration, q=2:")
-    ou2_mses, ou2_times, ou2_diffusions = time_solver(init_x, gt,
-                                                      lambda x, **kwargs: solve_magnani(x, min_timestep=final_time,
-                                                                                        **kwargs),
-                                                      sol_params=[{'steps': steps} for steps in steps_list],
-                                                      torch_stack=True)
+    iwp2_mses, iwp2_times, iwp2_diffusions = run_method(
+        method_name='iwp2',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: solve_magnani(x, min_timestep=final_time, prior='IWP', **kwargs),
+                                    sol_params=[{'steps': steps} for steps in steps_list],
+                                    torch_stack=True)
+    )
 
-    print("Magnani IWP integration, q=2:")
-    iwp2_mses, iwp2_times, iwp2_diffusions = time_solver(init_x, gt,
-                                                         lambda x, **kwargs: solve_magnani(x, min_timestep=final_time,
-                                                                                           prior='IWP', **kwargs),
-                                                         sol_params=[{'steps': steps} for steps in steps_list],
-                                                         torch_stack=True)
+    ou1_mses, ou1_times, ou1_diffusions = run_method(
+        method_name='ou1',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: solve_magnani(x, min_timestep=final_time, q=1, **kwargs),
+                                    sol_params=[{'steps': steps} for steps in steps_list],
+                                    torch_stack=True)
+    )
 
-    print("Magnani IOU integration, q=1:")
-    ou1_mses, ou1_times, ou1_diffusions = time_solver(init_x, gt,
-                                                      lambda x, **kwargs: solve_magnani(x, min_timestep=final_time, q=1,
-                                                                                        **kwargs),
-                                                      sol_params=[{'steps': steps} for steps in steps_list],
-                                                      torch_stack=True)
+    iwp1_mses, iwp1_times, iwp1_diffusions = run_method(
+        method_name='iwp1',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: solve_magnani(x, min_timestep=final_time, prior='IWP', q=1, **kwargs),
+                                    sol_params=[{'steps': steps} for steps in steps_list],
+                                    torch_stack=True)
+    )
 
-    print("Magnani IWP integration, q=1:")
-    iwp1_mses, iwp1_times, iwp1_diffusions = time_solver(init_x, gt,
-                                                         lambda x, **kwargs: solve_magnani(x, min_timestep=final_time,
-                                                                                           prior='IWP', q=1,
-                                                                                           **kwargs),
-                                                         sol_params=[{'steps': steps} for steps in steps_list],
-                                                         torch_stack=True)
-
-    tols = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
-    print("Scipy RK45 integration:")
-    sci45_mses, sci45_times, sci45_diffusions = time_solver(init_x, gt, lambda x, **kwargs: solve_scipy(x, final_time,
+    sci45_mses, sci45_times, sci45_diffusions = run_method(
+        method_name='sci45',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: solve_scipy(x, final_time,
                                                                                                         method='RK45',
                                                                                                         **kwargs),
                                                             sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
-
-    tols = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
-    print("Scipy RK23 integration:")
-    sci23_mses, sci23_times, sci23_diffusions = time_solver(init_x, gt, lambda x, **kwargs: solve_scipy(x, final_time,
+    )
+    
+    sci23_mses, sci23_times, sci23_diffusions = run_method(
+        method_name='sci23',
+        steps_list=steps_list,
+        final_time=final_time,
+        func=lambda : time_solver(init_x, gt, lambda x, **kwargs: solve_scipy(x, final_time,
                                                                                                         method='RK23',
                                                                                                         **kwargs),
                                                             sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
+    )
 
     marker = itertools.cycle((',', '+', '.', 'o', '*'))
     plt.plot(ou1_times, ou1_mses, label='Magnani, q=1 (IOUP)', marker=next(marker))
