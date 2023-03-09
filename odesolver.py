@@ -113,7 +113,7 @@ def get_Q_OU(q, h, theta, sigma=1.):
     return Q
 
 
-def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU', theta=1., sigma=1.):
+def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU', theta=-3 / 2, sigma=1.):
     m, P = m0, P0
 
     all_ms = [m0]

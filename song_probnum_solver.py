@@ -102,16 +102,33 @@ def plot_results(ms, title: str = ''):
     plt.show()
 
 
-def euler_int(x, t0: float, dt: float):
-    t = t0
+def second_order_heun_int(x, t0: float, dt: float, tmax: float = 1.0):
+    t = tmax
     res = [x]
     ts = [t]
-    while t < 1.0:
-        t += dt
-        # breakpoint()
-        x -= ode_func(max(t0, 1 - t), x) * dt
+    while t > t0:
+        approx_grad = ode_func(t, x)
+        approx_x = x - approx_grad * dt
+        x -= (approx_grad + ode_func(t + dt, approx_x)) * dt / 2
 
         res.append(x)
         ts.append(t)
+
+        t -= dt
+
+    return torch.tensor(res).permute(1, 0), ts
+
+
+def euler_int(x, t0: float, dt: float, tmax: float = 1.0):
+    t = tmax
+    res = [x]
+    ts = [t]
+    while t > t0:
+        x -= ode_func(t, x) * dt
+
+        res.append(x)
+        ts.append(t)
+
+        t -= dt
 
     return torch.tensor(res).permute(1, 0), ts
