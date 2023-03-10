@@ -83,9 +83,9 @@ if __name__ == "__main__":
     init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
     init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
 
-    steps_list = [10, 50, 100, 1000]
+    steps_list = [10, 25, 50, 75, 100, 1000, 10000]
     final_time = 1e-7
-    tss = [np.linspace(1.0, final_time, steps + 1) for steps in steps_list]
+    tss = [np.linspace(final_time, 1.0, steps + 1) for steps in steps_list]
     tols = [1, 1e-1, 1e-2, 1e-3]
 
     # Ground truth
@@ -106,6 +106,7 @@ if __name__ == "__main__":
                 "ts": ts,
             }, f)
     gt = ms[:-1, -1]
+    # plot_trajectory(ms[:-1], ts)
 
     # euler integration
     euler_mses, euler_times, euler_diffusions = run_method(
