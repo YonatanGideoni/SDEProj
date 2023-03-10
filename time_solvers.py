@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-from consts import BS, DEVICE, IMG_TENS_SHAPE, SIGMA
+from consts import BS, DEVICE, IMG_TENS_SHAPE, SIGMA, float_dtype
 from plot_utils import plot_final_results
 from song_probnum_solver import solve_scipy, euler_int, solve_magnani, second_order_heun_int
 from song_utils import marginal_prob_std
@@ -48,7 +48,7 @@ def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_pa
 
 
 def run_method(func: callable, steps_list, final_time, method_name):
-    fname = f'{method_name}_{final_time}_{steps_list}_{N_TRIALS}.pkl'
+    fname = f'{method_name}_{final_time}_{steps_list}_{N_TRIALS}_{float_dtype}.pkl'
     if os.path.isfile(fname):
         print(f"Found cached {method_name}. Loading...")
         with open(fname, 'rb') as f:
@@ -80,11 +80,23 @@ if __name__ == "__main__":
     # TODO: Use consistent torch seed
     seed = 42
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
 
     # Define some starting point
-    t = torch.ones(BS, device=DEVICE)
-    init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE) * marginal_prob_std(t, SIGMA)[:, None, None, None]
-    init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
+    seed_file = 'seed.pkl'
+    if os.path.isfile(seed_file):
+        with open(seed_file, 'rb') as f:
+            init_x = pickle.load(f)
+    else:
+        t = torch.ones(BS, device=DEVICE)
+        init_x = torch.randn(*IMG_TENS_SHAPE, device=DEVICE, dtype=float_dtype) * \
+                 marginal_prob_std(t, SIGMA)[:, None, None, None]
+        init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
+        with open(seed_file, 'wb') as f:
+            pickle.dump(init_x, f)
+
+    init_x = init_x.astype(float_dtype)
 
     steps_list = [10, 25, 50, 75, 100, 1000, 10000]
     final_time = 1e-7
