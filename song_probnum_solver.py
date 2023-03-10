@@ -18,7 +18,8 @@ def ode_func(t, x):
 
 
 def solve_scipy(init_x, min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
-    res = integrate.solve_ivp(ode_func, (1.0, min_timestep), init_x, rtol=rtol, atol=atol, method=method)
+    res = integrate.solve_ivp(lambda t, x: reverse_time(ode_func, t, x), (min_timestep, 1.0), init_x, rtol=rtol,
+                              atol=atol, method=method)
     return res["y"], res["t"]
 
 
@@ -43,7 +44,7 @@ def solve_magnani(init_x, min_timestep, steps, q=2, solver_params: dict = {}, pr
     x_0 = init_x
 
     # Compute derivative at x_0 when t=1.0
-    f_x0 = ode_func(1.0, x_0.reshape(1, 785))
+    f_x0 = reverse_time(ode_func, 0.0, x_0.reshape(1, 785))
 
     # Initialise initial means and covariances
     m0 = np.zeros((785, q + 1, 1))
@@ -58,8 +59,8 @@ def solve_magnani(init_x, min_timestep, steps, q=2, solver_params: dict = {}, pr
     P0 = torch.Tensor(P0)
 
     # Solve the ODE!
-    ms, ts = odesolver.solve_kf(m0, P0, ode_func, t0=1.0, t1=min_timestep, steps=steps, q=q, method=prior,
-                                **solver_params)
+    ms, ts = odesolver.solve_kf(m0, P0, lambda t, x: reverse_time(ode_func, t, x), t0=min_timestep, t1=1.0, steps=steps,
+                                q=q, method=prior, **solver_params)
 
     return ms, ts
 
@@ -68,10 +69,10 @@ def second_order_heun_int(x, ts: np.array):
     res = [x]
     dt = abs(ts[0] - ts[1])
     for t in ts:
-        approx_grad = ode_func(t, x)
-        approx_x = x - approx_grad * dt
+        approx_grad = reverse_time(ode_func, t, x)
+        approx_x = x + approx_grad * dt
 
-        x -= (approx_grad + ode_func(t - dt, approx_x)) * dt / 2
+        x += (approx_grad + reverse_time(ode_func, t + dt, approx_x)) * dt / 2
 
         res.append(x)
 
@@ -84,7 +85,10 @@ def euler_int(x, ts: np.array):
     dt = abs(ts[0] - ts[1])
 
     for t in ts:
-        x -= ode_func(t, x) * dt
+        x += reverse_time(ode_func, t, x) * dt
         res.append(x)
 
     return torch.tensor(res).permute(1, 0), ts
+
+def reverse_time(func: callable, t, x, T=1.0):
+    return -func(max(T - t, 1e-7), x)
