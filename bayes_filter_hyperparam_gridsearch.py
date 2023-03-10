@@ -9,7 +9,6 @@ from song_probnum_solver import solve_scipy, solve_magnani
 from song_utils import marginal_prob_std
 
 
-# TODO - make the magnani solver accept hyperparams
 # TODO - move the generate_ground_truth function to some other generic file
 # TODO - make sure that code changes you did here work and don't break anything in time_solvers.py
 def generate_ground_truth(min_timestep: float, init_x: np.ndarray = None, tol: float = 1e-8) -> tuple:
@@ -33,7 +32,8 @@ if __name__ == '__main__':
     min_timestep = 1e-7
     gt, init_x = generate_ground_truth(min_timestep)
 
-    dt = 1e-2
+    steps = 100
+    final_time = 1e-7
 
     res = []
     for q in qs:
@@ -41,16 +41,18 @@ if __name__ == '__main__':
             hyp_params = {'sigma': sigma}
 
             res_over_time, _ = solve_magnani(copy.deepcopy(init_x), q=q, min_timestep=min_timestep, prior='IWP',
-                                             solver_params=hyp_params)
+                                             steps=steps, solver_params=hyp_params)
             mse = np.mean((res_over_time[:-1, -1] - gt) ** 2)
             res.append(dict(prior='IWP', MSE=mse, diffusion=res_over_time, **hyp_params))
 
             for theta in thetas:
                 hyp_params['theta'] = theta
                 res_over_time, _ = solve_magnani(copy.deepcopy(init_x), q=q, min_timestep=min_timestep, prior='IOU',
-                                                 solver_params=hyp_params)
+                                                 steps=steps, solver_params=hyp_params)
                 mse = np.mean((res_over_time[:-1, -1] - gt) ** 2)
                 res.append(dict(prior='IOU', MSE=mse, diffusion=res_over_time, **hyp_params))
+
+            pd.DataFrame.from_records(res).to_csv('hyperparam_gridsearch_res.csv', index=False)
 
     res = pd.DataFrame.from_records(res)
     print(res.sort_values('loss'))
