@@ -70,7 +70,7 @@ def second_order_heun_int(x, ts: np.array):
         approx_grad = ode_func(t, x)
         approx_x = x - approx_grad * dt
 
-        x -= (approx_grad + ode_func(t - dt, approx_x)) * dt / 2
+        x -= (approx_grad + ode_func(max(t - dt, ts[-1]), approx_x)) * dt / 2
 
         res.append(x)
 

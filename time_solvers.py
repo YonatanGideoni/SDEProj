@@ -1,5 +1,7 @@
 import copy
 import itertools
+import os.path
+import pickle
 from timeit import default_timer as timer
 
 import numpy as np
@@ -7,7 +9,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from consts import BS, DEVICE, IMG_TENS_SHAPE, SIGMA
-from plot_utils import plot_final_results, plot_reverse_process, plot_trajectory
+from plot_utils import plot_final_results
 from song_probnum_solver import solve_scipy, euler_int, solve_magnani, second_order_heun_int
 from song_utils import marginal_prob_std
 
@@ -42,15 +44,16 @@ def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_pa
 
     return mses, runtimes, results_over_time
 
-def run_method(func: callable, steps_list, final_time, method_name):
 
+def run_method(func: callable, steps_list, final_time, method_name):
     fname = f'{method_name}_{final_time}_{steps_list}.pkl'
     if os.path.isfile(fname):
         print(f"Found cached {method_name}. Loading...")
         with open(fname, 'rb') as f:
             loaded_dict = pickle.load(f)
             times, diffusions = loaded_dict["times"], loaded_dict["diffusions"]
-        mses = [torch.nn.functional.mse_loss(torch.tensor(diffusion[:, -1].flatten()), torch.tensor(gt.flatten())) for diffusion in diffusions]
+        mses = [torch.nn.functional.mse_loss(torch.tensor(diffusion[:, -1].flatten()), torch.tensor(gt.flatten())) for
+                diffusion in diffusions]
         mses = np.mean(np.array(mses).reshape(-1, 3), axis=1)
     else:
         print(f"Computing {method_name} integration...")
@@ -60,7 +63,7 @@ def run_method(func: callable, steps_list, final_time, method_name):
                 "times": times,
                 "diffusions": diffusions,
             }, f)
-    
+
     return mses, times, diffusions
 
 
@@ -75,8 +78,6 @@ if __name__ == "__main__":
     # TODO: Use consistent torch seed
     seed = 42
     torch.manual_seed(seed)
-    import pickle
-    import os.path
 
     # Define some starting point
     t = torch.ones(BS, device=DEVICE)
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         func=lambda : time_solver(init_x, gt, lambda x, **kwargs: second_order_heun_int(x, **kwargs),
                                   sol_params=[{'ts': ts} for ts in tss])
     )
-    
+
     ou2_mses, ou2_times, ou2_diffusions = run_method(
         method_name='ou2',
         steps_list=steps_list,
@@ -169,7 +170,7 @@ if __name__ == "__main__":
                                                                                                         **kwargs),
                                                             sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
     )
-    
+
     sci23_mses, sci23_times, sci23_diffusions = run_method(
         method_name='sci23',
         steps_list=steps_list,
@@ -180,7 +181,7 @@ if __name__ == "__main__":
                                                             sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
     )
 
-    marker = itertools.cycle((',', '+', '.', 'o', '*'))
+    marker = itertools.cycle((',', '+', '.', 'o', '*', 'd'))
     plt.plot(ou1_times, ou1_mses, label='Magnani, q=1 (IOUP)', marker=next(marker))
     plt.plot(ou2_times, ou2_mses, label='Magnani, q=2 (IOUP)', marker=next(marker))
     plt.plot(iwp1_times, iwp1_mses, label='Magnani, q=1 (IWP)', marker=next(marker))
