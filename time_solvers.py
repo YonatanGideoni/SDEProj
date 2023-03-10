@@ -13,7 +13,7 @@ from plot_utils import plot_final_results
 from song_probnum_solver import solve_scipy, euler_int, solve_magnani, second_order_heun_int
 from song_utils import marginal_prob_std
 
-N_TRIALS = 3
+N_TRIALS = 1
 
 
 def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_params: list, torch_stack: bool = False,
@@ -95,8 +95,6 @@ if __name__ == "__main__":
         init_x = np.concatenate([init_x.cpu().numpy().reshape((-1,)), np.zeros((IMG_TENS_SHAPE[0],))], axis=0)
         with open(seed_file, 'wb') as f:
             pickle.dump(init_x, f)
-
-    init_x = init_x.astype(float_dtype)
 
     steps_list = [10, 25, 50, 75, 100, 1000, 10000]
     final_time = 1e-7
