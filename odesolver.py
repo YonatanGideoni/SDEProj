@@ -157,6 +157,6 @@ def solve_kf(m0, P0, f: callable, t0=0, t1=8, steps=50, R=0.0, q=2, method='OU',
         # Update
         m, P = kalman_step(z, m_minus, P_minus, t_i)
 
-        all_ms.append(m_minus)
+        all_ms.append(m)
 
     return all_ms, ts
