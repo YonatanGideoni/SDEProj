@@ -26,13 +26,13 @@ def generate_ground_truth(min_timestep: float, init_x: np.ndarray = None, tol: f
 
 if __name__ == '__main__':
     sigmas = np.linspace(0.1, 3, num=10)
-    thetas = np.linspace(-3, -0.1, num=10)
+    thetas = np.linspace(-30, -0.1, num=10)
     qs = [1, 2, 3]
 
     min_timestep = 1e-7
     gt, init_x = generate_ground_truth(min_timestep)
 
-    steps = 100
+    steps = 25
     final_time = 1e-7
 
     res = []
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
             for theta in thetas:
                 hyp_params['theta'] = theta
-                res_over_time, _ = solve_magnani(copy.deepcopy(init_x), q=q, min_timestep=min_timestep, prior='IOU',
+                res_over_time, _ = solve_magnani(copy.deepcopy(init_x), q=q, min_timestep=min_timestep, prior='OU',
                                                  steps=steps, solver_params=hyp_params)
                 mse = ((res_over_time[-1][:-1, 0, 0] - gt) ** 2).mean()
                 res.append(dict(prior='IOU', MSE=mse, diffusion=res_over_time, **hyp_params))
