@@ -68,7 +68,7 @@ def solve_magnani(init_x, min_timestep, steps, q=2, solver_params: dict = {}, pr
 def second_order_heun_int(x, ts: np.array):
     res = [x]
     dt = abs(ts[0] - ts[1])
-    for t in ts:
+    for t in ts[:-1]:
         approx_grad = reverse_time(ode_func, t, x)
         approx_x = x + approx_grad * dt
 
@@ -84,7 +84,7 @@ def euler_int(x, ts: np.array):
 
     dt = abs(ts[0] - ts[1])
 
-    for t in ts:
+    for t in ts[:-1]:
         x += reverse_time(ode_func, t, x) * dt
         res.append(x)
 
