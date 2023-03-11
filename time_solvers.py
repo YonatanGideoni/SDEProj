@@ -8,12 +8,12 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-from consts import BS, DEVICE, IMG_TENS_SHAPE, SIGMA, float_dtype
-from plot_utils import plot_final_results
+from consts import BS, DEVICE, IMG_TENS_SHAPE, SIGMA, SMALL_NUMBER, float_dtype
+from plot_utils import plot_final_results, plot_trajectory, plot_reverse_process
 from song_probnum_solver import solve_scipy, euler_int, solve_magnani, second_order_heun_int
 from song_utils import marginal_prob_std
 
-N_TRIALS = 1
+N_TRIALS = 3
 
 
 def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_params: list, torch_stack: bool = False,
@@ -48,7 +48,8 @@ def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_pa
 
 
 def run_method(func: callable, steps_list, final_time, method_name):
-    fname = f'{method_name}_{final_time}_{steps_list}_{N_TRIALS}_{float_dtype}.pkl'
+    fname = f'{method_name}_{final_time}_{steps_list}_{N_TRIALS}_{SMALL_NUMBER}_{float_dtype}.pkl'
+    print(fname)
     if os.path.isfile(fname):
         print(f"Found cached {method_name}. Loading...")
         with open(fname, 'rb') as f:
@@ -96,7 +97,7 @@ if __name__ == "__main__":
         with open(seed_file, 'wb') as f:
             pickle.dump(init_x, f)
 
-    steps_list = [10, 25, 50, 75, 100, 1000, 10000]
+    steps_list = [10, 50, 100, 500, 1000]
     final_time = 1e-7
     tss = [np.linspace(final_time, 1.0, steps + 1) for steps in steps_list]
     tols = [1, 1e-1, 1e-2, 1e-3]
@@ -104,7 +105,7 @@ if __name__ == "__main__":
     # Ground truth
     print("Computing ground truth")
     rtol, atol = 1e-8, 1e-8
-    fname = f'gt_{final_time}_{rtol}_{atol}_{seed}.pkl'
+    fname = f'gt_{final_time}_{rtol}_{atol}_{seed}_{SMALL_NUMBER}.pkl'
     if os.path.isfile(fname):
         print("Found ground truth data. Loading...")
         with open(fname, 'rb') as f:
@@ -119,7 +120,6 @@ if __name__ == "__main__":
                 "ts": ts,
             }, f)
     gt = ms[:-1, -1]
-    # plot_trajectory(ms[:-1], ts)
 
     # euler integration
     euler_mses, euler_times, euler_diffusions = run_method(
