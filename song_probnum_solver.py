@@ -3,7 +3,7 @@ import torch
 from scipy import integrate
 
 import odesolver
-from consts import SIGMA, IMG_TENS_SHAPE
+from consts import SIGMA, IMG_TENS_SHAPE, float_dtype
 from song_utils import diffusion_coeff, score_eval_wrapper, divergence_eval_wrapper
 
 
@@ -31,7 +31,7 @@ def solve_magnani(init_x, min_timestep, steps, q=2, solver_params: dict = {}, pr
         x = np.asarray(x)
         time_steps = np.ones((IMG_TENS_SHAPE[0],)) * t
         sample = x[:, :-1]
-        g = diffusion_coeff(torch.tensor(t), SIGMA).cpu().numpy()
+        g = diffusion_coeff(torch.tensor(t, dtype=float_dtype), SIGMA).cpu().numpy()
         sample_grad = -0.5 * g ** 2 * score_eval_wrapper(sample, time_steps)
         logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
 
@@ -89,6 +89,7 @@ def euler_int(x, ts: np.array):
         res.append(x)
 
     return torch.tensor(res).permute(1, 0), ts
+
 
 def reverse_time(func: callable, t, x, T=1.0):
     return -func(max(T - t, 1e-7), x)

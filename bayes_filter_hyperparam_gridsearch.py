@@ -42,19 +42,19 @@ if __name__ == '__main__':
 
             res_over_time, _ = solve_magnani(copy.deepcopy(init_x), q=q, min_timestep=min_timestep, prior='IWP',
                                              steps=steps, solver_params=hyp_params)
-            mse = np.mean((res_over_time[:-1, -1] - gt) ** 2)
+            mse = ((res_over_time[-1][:-1, 0, 0] - gt) ** 2).mean()
             res.append(dict(prior='IWP', MSE=mse, diffusion=res_over_time, **hyp_params))
 
             for theta in thetas:
                 hyp_params['theta'] = theta
                 res_over_time, _ = solve_magnani(copy.deepcopy(init_x), q=q, min_timestep=min_timestep, prior='IOU',
                                                  steps=steps, solver_params=hyp_params)
-                mse = np.mean((res_over_time[:-1, -1] - gt) ** 2)
+                mse = ((res_over_time[-1][:-1, 0, 0] - gt) ** 2).mean()
                 res.append(dict(prior='IOU', MSE=mse, diffusion=res_over_time, **hyp_params))
 
             pd.DataFrame.from_records(res).to_csv('hyperparam_gridsearch_res.csv', index=False)
 
     res = pd.DataFrame.from_records(res)
-    print(res.sort_values('loss'))
+    print(res.sort_values('MSE'))
 
     res.to_csv('hyperparam_gridsearch_res.csv', index=False)
