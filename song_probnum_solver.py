@@ -3,7 +3,7 @@ import torch
 from scipy import integrate
 
 import odesolver
-from consts import SIGMA, IMG_TENS_SHAPE, float_dtype
+from consts import SIGMA, IMG_TENS_SHAPE, SMALL_NUMBER, float_dtype
 from song_utils import diffusion_coeff, score_eval_wrapper, divergence_eval_wrapper
 
 
@@ -92,4 +92,4 @@ def euler_int(x, ts: np.array):
 
 
 def reverse_time(func: callable, t, x, T=1.0):
-    return -func(max(T - t, 1e-7), x)
+    return -func(max(T - t, SMALL_NUMBER), x)
