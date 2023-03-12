@@ -140,6 +140,20 @@ def marginal_prob_std(t, sigma):
     return torch.sqrt((sigma ** (2 * t) - 1.) / 2. / np.log(sigma))
 
 
+def marginal_prob_std_der(t, sigma):
+    """Compute the mean and standard deviation of $p_{0t}(x(t) | x(0))$.
+
+    Args:
+      t: A vector of time steps.
+      sigma: The $\sigma$ in our SDE.
+
+    Returns:
+      The standard deviation.
+    """
+    t = torch.tensor(t, device=DEVICE)
+    return 0.5 * torch.sqrt(2 * np.log(sigma) / (sigma ** (2 * t) - 1.)) * sigma ** (2 * t)
+
+
 def diffusion_coeff(t, sigma):
     """Compute the diffusion coefficient of our SDE.
 

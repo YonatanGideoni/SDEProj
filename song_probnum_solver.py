@@ -4,17 +4,26 @@ from scipy import integrate
 
 import odesolver
 from consts import SIGMA, IMG_TENS_SHAPE, SMALL_NUMBER, float_dtype
-from song_utils import diffusion_coeff, score_eval_wrapper, divergence_eval_wrapper
+from song_utils import diffusion_coeff, score_eval_wrapper, divergence_eval_wrapper, marginal_prob_std, \
+    marginal_prob_std_der
 
 
-def ode_func(t, x):
+def ode_func(t, y):
     """The ODE function for the black-box solver."""
     time_steps = np.ones((IMG_TENS_SHAPE[0],)) * t
-    sample = x[:-IMG_TENS_SHAPE[0]]
+    divergent_term = float(marginal_prob_std(torch.tensor(t), SIGMA).cpu().numpy())
+    divergent_der = float(marginal_prob_std_der(torch.tensor(t), SIGMA).cpu().numpy())
+    x = divergent_term * y
+
     g = diffusion_coeff(torch.tensor(t), SIGMA).cpu().numpy()
+    sample = x[:-IMG_TENS_SHAPE[0]]
     sample_grad = -0.5 * g ** 2 * score_eval_wrapper(sample, time_steps)
+
+    trimmed_y = y[:-1].numpy() if isinstance(y, torch.Tensor) else y[:-1]
+    rescaled_grad = (sample_grad - divergent_der * trimmed_y) / divergent_term
+
     logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
-    return np.concatenate([sample_grad, logp_grad], axis=0)
+    return np.concatenate([rescaled_grad, logp_grad], axis=0)
 
 
 def solve_scipy(init_x, min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
@@ -76,7 +85,7 @@ def second_order_heun_int(x, ts: np.array):
 
         res.append(x)
 
-    return torch.tensor(res).permute(1, 0), ts
+    return torch.tensor(np.array([np.array(r) for r in res])).permute(1, 0), ts
 
 
 def euler_int(x, ts: np.array):
@@ -88,7 +97,7 @@ def euler_int(x, ts: np.array):
         x += reverse_time(ode_func, t, x) * dt
         res.append(x)
 
-    return torch.tensor(res).permute(1, 0), ts
+    return torch.tensor(np.array([np.array(r) for r in res])).permute(1, 0), ts
 
 
 def reverse_time(func: callable, t, x, T=1.0):
