@@ -19,7 +19,7 @@ def load_cached_res(res_folder: str, partial_res_name: str):
     return res['diffusions'][7][:, -1].reshape(28, 28)
 
 
-def plot_cached_traj(folder, gt_name, finite_name, ax, n_pixels_plot: int = 100, gt_c='darkblue', traj_c='orange'):
+def plot_cached_err_over_time(folder, gt_name, finite_name, ax, n_pixels_plot: int = 10, c='r'):
     cached_res = load_res(folder, gt_name)
     gt_trajs = cached_res['diffusions'][-1][:n_pixels_plot]
     gt_times = np.linspace(1, 0, num=gt_trajs.shape[-1])
@@ -28,11 +28,17 @@ def plot_cached_traj(folder, gt_name, finite_name, ax, n_pixels_plot: int = 100,
     finite_trajs = cached_res['diffusions'][7][:n_pixels_plot]
     times = np.linspace(1, 0, num=finite_trajs.shape[-1])
 
-    for traj in gt_trajs:
-        ax.plot(gt_times, traj, c=gt_c)
+    for gt_traj, traj in zip(gt_trajs, finite_trajs):
+        ax.plot(times, traj - np.interp(times[::-1], gt_times[::-1], gt_traj.numpy()[::-1])[::-1], c=c)
 
-    for traj in finite_trajs:
-        ax.plot(times, traj, c=traj_c)
+
+def plot_cached_traj(folder, file_name, ax, n_pixels_plot: int = 10, c='k'):
+    cached_res = load_res(folder, file_name)
+    trajs = cached_res['diffusions'][7][:n_pixels_plot]
+    times = np.linspace(1, 0, num=trajs.shape[-1])
+
+    for traj in trajs:
+        ax.plot(times, traj, c=c)
 
 
 if __name__ == '__main__':
@@ -80,8 +86,8 @@ if __name__ == '__main__':
 
     # TODO - finish this
     fig, axs = plt.subplots(3, 1)
-    plot_cached_traj('normal_bf_res', 'euler', 'iwp1', axs[0])
-    plot_cached_traj('const_var_res', 'euler', 'iwp1', axs[1])
+    plot_cached_traj('normal_bf_res', 'iwp1', axs[0])
+    plot_cached_traj('const_var_res', 'iwp1', axs[1])
     # plot_cached_traj('semi_int_res', 'euler', axs[2])
 
     plt.show()
