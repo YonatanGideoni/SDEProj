@@ -21,15 +21,15 @@ def load_cached_res(res_folder: str, partial_res_name: str):
 
 def plot_cached_err_over_time(folder, gt_name, finite_name, ax, n_pixels_plot: int = 10, c='r'):
     cached_res = load_res(folder, gt_name)
-    gt_trajs = cached_res['diffusions'][-1][:n_pixels_plot]
-    gt_times = np.linspace(1, 0, num=gt_trajs.shape[-1])
+    gt_trajs = cached_res['ms'][:n_pixels_plot]
+    gt_times = cached_res['ts']
 
     cached_res = load_res(folder, finite_name)
     finite_trajs = cached_res['diffusions'][7][:n_pixels_plot]
     times = np.linspace(1, 0, num=finite_trajs.shape[-1])
 
     for gt_traj, traj in zip(gt_trajs, finite_trajs):
-        ax.plot(times, traj - np.interp(times[::-1], gt_times[::-1], gt_traj.numpy()[::-1])[::-1], c=c)
+        ax.plot(times, traj - np.interp(times, gt_times, gt_traj)[::-1], c=c)
 
 
 def plot_cached_traj(folder, file_name, ax, n_pixels_plot: int = 10, c='k'):
@@ -92,9 +92,9 @@ if __name__ == '__main__':
     plot_cached_traj('const_var_res', 'iwp1', axs[1, 0])
     plot_cached_traj('semi_int_res', 'iwp1', axs[2, 0])
 
-    plot_cached_err_over_time('normal_bf_res', 'euler', 'iwp1', axs[0, 1])
-    plot_cached_err_over_time('const_var_res', 'euler', 'iwp1', axs[1, 1])
-    plot_cached_err_over_time('semi_int_res', 'euler', 'iwp1', axs[2, 1])
+    plot_cached_err_over_time('normal_bf_res', 'gt', 'iwp1', axs[0, 1])
+    plot_cached_err_over_time('const_var_res', 'gt', 'iwp1', axs[1, 1])
+    plot_cached_err_over_time('semi_int_res', 'gt', 'iwp1', axs[2, 1])
 
     axs[0, 0].set_ylabel('BF', fontsize=fs)
     axs[1, 0].set_ylabel('CV-BF', fontsize=fs)
