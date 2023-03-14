@@ -97,10 +97,10 @@ if __name__ == "__main__":
         with open(seed_file, 'wb') as f:
             pickle.dump(init_x, f)
 
-    steps_list = [10, 50, 100, 500, 1000]
+    steps_list = [10, 30, 50, 100, 300, 500, 750, 1000]
     final_time = 1e-7
     tss = [np.linspace(final_time, 1.0, steps + 1) for steps in steps_list]
-    tols = [1, 1e-1, 1e-2, 1e-3]
+    tols = [1, 5e-1, 1e-1, 5e-2, 1e-2, 1e-3, 5e-4, 1e-4]
 
     # Ground truth
     print("Computing ground truth")
