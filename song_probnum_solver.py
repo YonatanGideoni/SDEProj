@@ -34,20 +34,25 @@ def solve_scipy(init_x, min_timestep, rtol=1e-5, atol=1e-5, method='RK45'):
 
 def solve_magnani(init_x, min_timestep, steps, q=2, solver_params: dict = {}, prior='OU', print_t=False):
     # Define special version of ODE func that deals with JAX
-    def ode_func(t, x):
+    def ode_func(t, y):
         """The ODE function for the black-box solver."""
         t = np.asarray(t)
-        x = np.asarray(x)
+        y = np.asarray(y)
+
         time_steps = np.ones((IMG_TENS_SHAPE[0],)) * t
-        sample = x[:, :-1]
-        g = diffusion_coeff(torch.tensor(t, dtype=float_dtype), SIGMA).cpu().numpy()
+        divergent_term = float(marginal_prob_std(torch.tensor(t), SIGMA).cpu().numpy())
+        divergent_der = float(marginal_prob_std_der(torch.tensor(t), SIGMA).cpu().numpy())
+        x = divergent_term * y
+
+        g = diffusion_coeff(torch.tensor(t), SIGMA).cpu().numpy()
+        sample = x[:, :-IMG_TENS_SHAPE[0]]
         sample_grad = -0.5 * g ** 2 * score_eval_wrapper(sample, time_steps)
+
+        trimmed_y = y[0, :-1].numpy() if isinstance(y, torch.Tensor) else y[0, :-1]
+        rescaled_grad = (sample_grad - divergent_der * trimmed_y) / divergent_term
+
         logp_grad = -0.5 * g ** 2 * divergence_eval_wrapper(sample, time_steps)
-
-        if print_t is True:
-            print(t)
-
-        return np.concatenate([sample_grad, logp_grad], axis=0)
+        return np.concatenate([rescaled_grad, logp_grad], axis=0)
 
     # Initial x sampled from distribution at t=1.0
     x_0 = init_x
