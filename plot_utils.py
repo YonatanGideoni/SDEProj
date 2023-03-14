@@ -4,17 +4,15 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from consts import IMG_TENS_SHAPE
 
 
-def plot_trajectory(ms, ts, solver_name: str = '', ax=None):
-    if ax is None:
-        plt.figure()
-        ax = plt.gca()
+def plot_trajectory(ms, ts, solver_name: str = ''):
+    plt.figure()
 
     for m in ms:
-        ax.plot(ts, m)
+        plt.plot(ts, m)
 
-    ax.set_xlabel("Time")
-    ax.set_ylabel("x")
-    ax.set_title("Pixel's values over time for " + solver_name)
+    plt.xlabel("Time [s]")
+    plt.ylabel("x")
+    plt.title("Pixel's values over time for " + solver_name)
 
 
 # TODO - plot also time

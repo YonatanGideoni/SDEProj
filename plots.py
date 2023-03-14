@@ -1,6 +1,7 @@
 import os
 import pickle
 
+import numpy as np
 from matplotlib import pyplot as plt, gridspec
 
 
@@ -18,9 +19,20 @@ def load_cached_res(res_folder: str, partial_res_name: str):
     return res['diffusions'][7][:, -1].reshape(28, 28)
 
 
-def plot_cached_traj(folder, file_name, ax):
-    cached_res = load_res(folder, file_name)
-    print()
+def plot_cached_traj(folder, gt_name, finite_name, ax, n_pixels_plot: int = 100, gt_c='darkblue', traj_c='orange'):
+    cached_res = load_res(folder, gt_name)
+    gt_trajs = cached_res['diffusions'][-1][:n_pixels_plot]
+    gt_times = np.linspace(1, 0, num=gt_trajs.shape[-1])
+
+    cached_res = load_res(folder, finite_name)
+    finite_trajs = cached_res['diffusions'][7][:n_pixels_plot]
+    times = np.linspace(1, 0, num=finite_trajs.shape[-1])
+
+    for traj in gt_trajs:
+        ax.plot(gt_times, traj, c=gt_c)
+
+    for traj in finite_trajs:
+        ax.plot(times, traj, c=traj_c)
 
 
 if __name__ == '__main__':
@@ -67,9 +79,9 @@ if __name__ == '__main__':
     plt.subplots_adjust(wspace=0.)
 
     # TODO - finish this
-    fig, axs = plt.subplots(1, 3)
-    plot_cached_traj('normal_bf_res', 'euler', axs[0])
-    plot_cached_traj('const_var_res', 'euler', axs[1])
+    fig, axs = plt.subplots(3, 1)
+    plot_cached_traj('normal_bf_res', 'euler', 'iwp1', axs[0])
+    plot_cached_traj('const_var_res', 'euler', 'iwp1', axs[1])
     # plot_cached_traj('semi_int_res', 'euler', axs[2])
 
     plt.show()
