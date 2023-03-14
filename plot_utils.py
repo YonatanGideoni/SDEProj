@@ -55,3 +55,6 @@ def plot_final_results(diffusions: list, nrows_ncols: tuple = None):
     for ax, [diffusion, title] in zip(grid, diffusions):
         ax.imshow(diffusion[:, -1].reshape(*IMG_TENS_SHAPE[-2:]))
         ax.set_title(title)
+
+        ax.set_yticks([])
+        ax.set_xticks([])

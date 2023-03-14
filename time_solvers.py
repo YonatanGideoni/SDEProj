@@ -214,9 +214,8 @@ if __name__ == "__main__":
 
     plt.semilogy()
 
-    plot_final_results([(ou1_diffusions[-1], 'OU,q=1'), (ou2_diffusions[-1], 'OU,q=2'),
-                        (iwp1_diffusions[-1], 'IWP,q=1'), (iwp2_diffusions[-1], 'IWP,q=2'),
-                        (euler_diffusions[-1], 'Euler'), (heun_diffusions[-1], 'Heun'),
-                        (sci23_diffusions[-1], 'Scipy RK23'), (sci45_diffusions[-1], 'Scipy RK45')])
+    plot_final_results([(ou1_diffusions[-1], 'IOUP, q=1'), (ou2_diffusions[-1], 'IOUP, q=2'),
+                        (iwp1_diffusions[-1], 'IWP, q=1'), (iwp2_diffusions[-1], 'IWP, q=2'),
+                        (euler_diffusions[-1], 'Euler'), (sci45_diffusions[-1], 'scipy RK45')])
 
     plt.show()
