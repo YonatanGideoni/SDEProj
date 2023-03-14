@@ -85,7 +85,7 @@ def euler_int(x, ts: np.array):
     dt = abs(ts[0] - ts[1])
 
     for t in ts[:-1]:
-        x += reverse_time(ode_func, t, x) * dt
+        x = x + reverse_time(ode_func, t, x) * dt
         res.append(x)
 
     return torch.tensor(res).permute(1, 0), ts
