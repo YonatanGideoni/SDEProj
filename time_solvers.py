@@ -19,10 +19,11 @@ N_TRIALS = 3
 def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_params: list, torch_stack: bool = False,
                 n_trials: int = N_TRIALS):
     mses = []
+    mses_stds = []
     results_over_time = []
     runtimes = []
     for params in sol_params:
-        loss = 0
+        losses = []
         runtime = 0
         for _ in range(n_trials):
 
@@ -38,13 +39,14 @@ def time_solver(init_x: torch.Tensor, gt: torch.Tensor, solver: callable, sol_pa
             results_over_time.append(res_over_time[:-1])
             mse_loss = torch.nn.functional.mse_loss(torch.tensor(res.flatten()), torch.tensor(gt.flatten()))
 
-            loss += mse_loss.item()
+            losses.append(mse_loss.item())
             runtime += end - start
 
-        mses.append(loss / n_trials)
+        mses.append(np.mean(losses))
+        mses_stds.append(np.std(losses))
         runtimes.append(runtime / n_trials)
 
-    return mses, runtimes, results_over_time
+    return mses, mses_stds, runtimes, results_over_time
 
 
 def run_method(func: callable, steps_list, final_time, method_name):
@@ -57,17 +59,18 @@ def run_method(func: callable, steps_list, final_time, method_name):
             times, diffusions = loaded_dict["times"], loaded_dict["diffusions"]
         mses = [torch.nn.functional.mse_loss(torch.tensor(diffusion[:, -1].flatten()), torch.tensor(gt.flatten())) for
                 diffusion in diffusions]
+        stds = np.std(np.array(mses).reshape(-1, N_TRIALS), axis=1)
         mses = np.mean(np.array(mses).reshape(-1, N_TRIALS), axis=1)
     else:
         print(f"Computing {method_name} integration...")
-        mses, times, diffusions = func()
+        mses, stds, times, diffusions = func()
         with open(fname, 'wb') as f:
             pickle.dump({
                 "times": times,
                 "diffusions": diffusions,
             }, f)
 
-    return mses, times, diffusions
+    return mses, stds, times, diffusions
 
 
 if __name__ == "__main__":
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     gt = ms[:-1, -1]
 
     # euler integration
-    euler_mses, euler_times, euler_diffusions = run_method(
+    euler_mses, euler_stds, euler_times, euler_diffusions = run_method(
         method_name='euler',
         steps_list=steps_list,
         final_time=final_time,
@@ -130,15 +133,7 @@ if __name__ == "__main__":
                                  sol_params=[{'ts': ts} for ts in tss])
     )
 
-    heun_mses, heun_times, heun_diffusions = run_method(
-        method_name='heun',
-        steps_list=steps_list,
-        final_time=final_time,
-        func=lambda: time_solver(init_x, gt, lambda x, **kwargs: second_order_heun_int(x, **kwargs),
-                                 sol_params=[{'ts': ts} for ts in tss])
-    )
-
-    ou2_mses, ou2_times, ou2_diffusions = run_method(
+    ou2_mses, ou2_stds, ou2_times, ou2_diffusions = run_method(
         method_name='ou2',
         steps_list=steps_list,
         final_time=final_time,
@@ -147,7 +142,7 @@ if __name__ == "__main__":
                                  torch_stack=True)
     )
 
-    iwp2_mses, iwp2_times, iwp2_diffusions = run_method(
+    iwp2_mses, iwp2_stds, iwp2_times, iwp2_diffusions = run_method(
         method_name='iwp2',
         steps_list=steps_list,
         final_time=final_time,
@@ -157,7 +152,7 @@ if __name__ == "__main__":
                                  torch_stack=True)
     )
 
-    ou1_mses, ou1_times, ou1_diffusions = run_method(
+    ou1_mses, ou1_stds, ou1_times, ou1_diffusions = run_method(
         method_name='ou1',
         steps_list=steps_list,
         final_time=final_time,
@@ -167,7 +162,7 @@ if __name__ == "__main__":
                                  torch_stack=True)
     )
 
-    iwp1_mses, iwp1_times, iwp1_diffusions = run_method(
+    iwp1_mses, iwp1_stds, iwp1_times, iwp1_diffusions = run_method(
         method_name='iwp1',
         steps_list=steps_list,
         final_time=final_time,
@@ -178,7 +173,7 @@ if __name__ == "__main__":
                                  torch_stack=True)
     )
 
-    sci45_mses, sci45_times, sci45_diffusions = run_method(
+    sci45_mses, sci45_stds, sci45_times, sci45_diffusions = run_method(
         method_name='sci45',
         steps_list=steps_list,
         final_time=final_time,
@@ -188,31 +183,24 @@ if __name__ == "__main__":
                                  sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
     )
 
-    sci23_mses, sci23_times, sci23_diffusions = run_method(
-        method_name='sci23',
-        steps_list=steps_list,
-        final_time=final_time,
-        func=lambda: time_solver(init_x, gt, lambda x, **kwargs: solve_scipy(x, final_time,
-                                                                             method='RK23',
-                                                                             **kwargs),
-                                 sol_params=[{'atol': tol, 'rtol': tol} for tol in tols])
-    )
-
-    marker = itertools.cycle((',', '+', '.', 'o', '*', 'd'))
-    plt.plot(ou1_times, ou1_mses, label='Magnani, q=1 (IOUP)', marker=next(marker))
-    plt.plot(ou2_times, ou2_mses, label='Magnani, q=2 (IOUP)', marker=next(marker))
-    plt.plot(iwp1_times, iwp1_mses, label='Magnani, q=1 (IWP)', marker=next(marker))
-    plt.plot(iwp2_times, iwp2_mses, label='Magnani, q=2 (IWP)', marker=next(marker))
+    marker = itertools.cycle(('s', 'x', '.', 'o', '*', 'd'))
+    plt.plot(iwp1_times, iwp1_mses, label='IWP, q=1', marker=next(marker))
+    plt.plot(iwp2_times, iwp2_mses, label='IWP, q=2', marker=next(marker))
+    plt.plot(ou1_times, ou1_mses, label='IOUP, q=1', marker=next(marker))
+    plt.plot(ou2_times, ou2_mses, label='IOUP, q=2', marker=next(marker))
     plt.plot(euler_times, euler_mses, label='Euler', marker=next(marker))
-    plt.plot(heun_times, heun_mses, label='Heun', marker=next(marker))
-    plt.plot(sci45_times, sci45_mses, label='SciPy RK45', marker=next(marker))
-    plt.plot(sci23_times, sci23_mses, label='SciPy RK23', marker=next(marker))
+    plt.plot(sci45_times, sci45_mses, label='scipy RK45', marker=next(marker))
 
-    plt.xlabel("Runtime [s]")
-    plt.ylabel("MSE")
-    plt.legend()
+    fs = 18
+    small_fs = 16
+    plt.xlabel("Runtime [s]", fontsize=fs)
+    plt.ylabel("MSE", fontsize=fs)
+    plt.legend(fontsize=small_fs)
+    plt.xticks(fontsize=small_fs)
+    plt.yticks(fontsize=small_fs)
 
     plt.semilogy()
+    plt.xlim(0)
 
     plot_final_results([(ou1_diffusions[-1], 'IOUP, q=1'), (ou2_diffusions[-1], 'IOUP, q=2'),
                         (iwp1_diffusions[-1], 'IWP, q=1'), (iwp2_diffusions[-1], 'IWP, q=2'),

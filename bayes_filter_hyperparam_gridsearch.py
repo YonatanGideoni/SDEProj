@@ -25,8 +25,8 @@ def generate_ground_truth(min_timestep: float, init_x: np.ndarray = None, tol: f
 
 
 if __name__ == '__main__':
-    sigmas = np.linspace(0.1, 3, num=10)
-    thetas = np.linspace(-30, -0.1, num=10)
+    sigmas = np.linspace(0.1, 3, num=20)
+    thetas = np.linspace(-30, -0.1, num=20)
     qs = [1, 2, 3]
 
     min_timestep = 1e-7
