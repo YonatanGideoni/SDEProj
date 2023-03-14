@@ -85,9 +85,33 @@ if __name__ == '__main__':
     plt.subplots_adjust(wspace=0.)
 
     # TODO - finish this
-    fig, axs = plt.subplots(3, 1)
-    plot_cached_traj('normal_bf_res', 'iwp1', axs[0])
-    plot_cached_traj('const_var_res', 'iwp1', axs[1])
-    # plot_cached_traj('semi_int_res', 'euler', axs[2])
+    small_fs = 14
+    fs = 16
+    fig, axs = plt.subplots(3, 2, sharex=True)
+    plot_cached_traj('normal_bf_res', 'iwp1', axs[0, 0])
+    plot_cached_traj('const_var_res', 'iwp1', axs[1, 0])
+    # plot_cached_traj('semi_int_res', 'iwp1', axs[2, 0])
+
+    plot_cached_err_over_time('normal_bf_res', 'euler', 'iwp1', axs[0, 1])
+    plot_cached_err_over_time('const_var_res', 'euler', 'iwp1', axs[1, 1])
+    # plot_cached_err_over_time('semi_int_res', 'euler', 'iwp1', axs[2, 1])
+
+    axs[0, 0].set_ylabel('BF', fontsize=fs)
+    axs[1, 0].set_ylabel('CV-BF', fontsize=fs)
+    axs[2, 0].set_ylabel('SI-BF', fontsize=fs)
+
+    axs[0, 0].set_title('Pixel trajectories over time', fontsize=fs)
+    axs[0, 1].set_title('Errors over time', fontsize=fs)
+
+    axs[2, 0].set_xlabel('Time', fontsize=fs)
+    axs[2, 1].set_xlabel('Time', fontsize=fs)
+
+    for sub_axs in axs:
+        for ax in sub_axs:
+            ax.tick_params(axis='both', which='major', labelsize=small_fs)
+
+            ax.set_xlim(0, 1)
+
+    plt.subplots_adjust(hspace=0.1)
 
     plt.show()
