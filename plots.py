@@ -90,11 +90,11 @@ if __name__ == '__main__':
     fig, axs = plt.subplots(3, 2, sharex=True)
     plot_cached_traj('normal_bf_res', 'iwp1', axs[0, 0])
     plot_cached_traj('const_var_res', 'iwp1', axs[1, 0])
-    # plot_cached_traj('semi_int_res', 'iwp1', axs[2, 0])
+    plot_cached_traj('semi_int_res', 'iwp1', axs[2, 0])
 
     plot_cached_err_over_time('normal_bf_res', 'euler', 'iwp1', axs[0, 1])
     plot_cached_err_over_time('const_var_res', 'euler', 'iwp1', axs[1, 1])
-    # plot_cached_err_over_time('semi_int_res', 'euler', 'iwp1', axs[2, 1])
+    plot_cached_err_over_time('semi_int_res', 'euler', 'iwp1', axs[2, 1])
 
     axs[0, 0].set_ylabel('BF', fontsize=fs)
     axs[1, 0].set_ylabel('CV-BF', fontsize=fs)
