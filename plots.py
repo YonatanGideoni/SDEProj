@@ -18,6 +18,11 @@ def load_cached_res(res_folder: str, partial_res_name: str):
     return res['diffusions'][7][:, -1].reshape(28, 28)
 
 
+def plot_cached_traj(folder, file_name, ax):
+    cached_res = load_res(folder, file_name)
+    print()
+
+
 if __name__ == '__main__':
     fs = 20
     res_folder = 'normal_bf_res'
@@ -60,4 +65,11 @@ if __name__ == '__main__':
         ax.set_xticks([])
 
     plt.subplots_adjust(wspace=0.)
+
+    # TODO - finish this
+    fig, axs = plt.subplots(1, 3)
+    plot_cached_traj('normal_bf_res', 'euler', axs[0])
+    plot_cached_traj('const_var_res', 'euler', axs[1])
+    # plot_cached_traj('semi_int_res', 'euler', axs[2])
+
     plt.show()
