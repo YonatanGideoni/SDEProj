@@ -97,7 +97,7 @@ if __name__ == "__main__":
         with open(seed_file, 'wb') as f:
             pickle.dump(init_x, f)
 
-    init_x /= marginal_prob_std(t, SIGMA)
+    init_x /= SIGMA ** (2 * t)
 
     steps_list = [50]
     final_time = 1e-7
@@ -221,4 +221,5 @@ if __name__ == "__main__":
                         (euler_diffusions[-1], 'Euler'), (heun_diffusions[-1], 'Heun'),
                         (sci23_diffusions[-1], 'Scipy RK23'), (sci45_diffusions[-1], 'Scipy RK45')])
 
+    breakpoint()
     plt.show()
